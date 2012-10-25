@@ -7,7 +7,8 @@ define([
            'JBrowse/View/Track/GridLines',
            'JBrowse/BehaviorManager',
            'JBrowse/View/Animation/Zoomer',
-           'JBrowse/View/Animation/Slider'
+           'JBrowse/View/Animation/Slider',
+           'JBrowse/View/Animation/Location'
        ], function(
            Util,
            dndMove,
@@ -17,7 +18,8 @@ define([
            GridLinesTrack,
            BehaviorManager,
            Zoomer,
-           Slider
+           Slider,
+           LocationAnimation
        ) {
 
 var dojof = Util.dojof;
@@ -776,21 +778,24 @@ GenomeView.prototype.slide = function(distance) {
                distance * this.getWidth());
 };
 
-GenomeView.prototype.setLocation = function(refseq, startbp, endbp) {
-    if (startbp === undefined) startbp = this.minVisible();
-    if (endbp === undefined) endbp = this.maxVisible();
-    if ((startbp < refseq.start) || (startbp > refseq.end))
+GenomeView.prototype.setLocation = function( refseq, startbp, endbp, skipAnimation ) {
+    if( startbp === undefined)
+        startbp = this.minVisible();
+    if( endbp === undefined)
+        endbp = this.maxVisible();
+    if( startbp < refseq.start || startbp > refseq.end )
         startbp = refseq.start;
-    if ((endbp < refseq.start) || (endbp > refseq.end))
+    if( endbp < refseq.start || endbp > refseq.end )
         endbp = refseq.end;
 
-    if (this.ref != refseq) {
+    // if we have to change reference sequences, do so
+    if( this.ref != refseq ) {
 	this.ref = refseq;
 	var removeTrack = function(track) {
-            if (track.div && track.div.parentNode)
-                track.div.parentNode.removeChild(track.div);
+            if( track.div && track.div.parentNode )
+                track.div.parentNode.removeChild( track.div );
 	};
-	dojo.forEach(this.tracks, removeTrack);
+	dojo.forEach( this.tracks, removeTrack );
 
         this.tracks = [];
         this.trackIndices = {};
@@ -808,28 +813,22 @@ GenomeView.prototype.setLocation = function(refseq, startbp, endbp) {
         }));
         this.sizeInit();
         this.setY(0);
-        //this.containerHeight = this.topSpace;
 
         this.behaviorManager.initialize();
+
+        skipAnimation = true;
     }
 
-    this.pxPerBp = Math.min(this.getWidth() / (endbp - startbp), this.maxPxPerBp );
-    this.curZoom = Util.findNearest(this.zoomLevels, this.pxPerBp);
-    if (Math.abs(this.pxPerBp - this.zoomLevels[this.zoomLevels.length - 1]) < 0.2) {
-        //the cookie-saved location is in round bases, so if the saved
-        //location was at the highest zoom level, the new zoom level probably
-        //won't be exactly at the highest zoom (which is necessary to trigger
-        //the sequence track), so we nudge the zoom level to be exactly at
-        //the highest level if it's close.
-        //Exactly how close is arbitrary; 0.2 was chosen to be close
-        //enough that people wouldn't notice if we fudged that much.
-        //console.log("nudging zoom level from %d to %d", this.pxPerBp, this.zoomLevels[this.zoomLevels.length - 1]);
-        this.pxPerBp = this.zoomLevels[this.zoomLevels.length - 1];
-    }
-    this.stripeWidth = (this.stripeWidthForZoom(this.curZoom) / this.zoomLevels[this.curZoom]) * this.pxPerBp;
-    this.instantZoomUpdate();
+    if( skipAnimation ) {
+        this.pxPerBp = Math.min( this.getWidth() / (endbp - startbp), this.maxPxPerBp );
+        this.curZoom = Util.findNearest( this.zoomLevels, this.pxPerBp );
+        this.stripeWidth = this.stripeWidthForZoom(this.curZoom) / this.zoomLevels[this.curZoom] * this.pxPerBp;
 
-    this.centerAtBase((startbp + endbp) / 2, true);
+        this.instantZoomUpdate();
+        this.centerAtBase((startbp + endbp) / 2, true);
+    } else {
+        this.animation = new LocationAnimation( this, 700, startbp, endbp );
+    }
 };
 
 GenomeView.prototype.stripeWidthForZoom = function(zoomLevel) {
@@ -1299,14 +1298,12 @@ GenomeView.prototype.zoomIn = function(e, zoomLoc, steps) {
                                                 / this.pxPerBp),
 				     fixedBp + (((1 - zoomLoc) * this.getWidth())
                                                 / this.pxPerBp));
-	//YAHOO.log("centerBp: " + centerBp + "; estimated post-zoom start base: " + (centerBp - ((zoomLoc * this.getWidth()) / this.pxPerBp)) + ", end base: " + (centerBp + (((1 - zoomLoc) * this.getWidth()) / this.pxPerBp)));
 
-    // Zooms take an arbitrary 700 milliseconds, which feels about right
-    // to me, although if the zooms were smoother they could probably
-    // get faster without becoming off-putting. -MS
-    new Zoomer(scale, this,
-               function() {this.zoomUpdate(zoomLoc, fixedBp);},
-               700, zoomLoc);
+    // zooms take 500 milliseconds
+    new Zoomer( scale, this,
+                function() { this.zoomUpdate(zoomLoc, fixedBp); },
+                500, zoomLoc
+              );
 };
 
 GenomeView.prototype.zoomOut = function(e, zoomLoc, steps) {
@@ -1336,16 +1333,12 @@ GenomeView.prototype.zoomOut = function(e, zoomLoc, steps) {
                                                 / this.pxPerBp),
 				     fixedBp + (((1 - zoomLoc) * this.getWidth())
                                                 / this.pxPerBp));
-
-	//YAHOO.log("centerBp: " + centerBp + "; estimated post-zoom start base: " + (centerBp - ((zoomLoc * this.getWidth()) / this.pxPerBp)) + ", end base: " + (centerBp + (((1 - zoomLoc) * this.getWidth()) / this.pxPerBp)));
     this.minLeft = this.pxPerBp * this.ref.start;
 
-    // Zooms take an arbitrary 700 milliseconds, which feels about right
-    // to me, although if the zooms were smoother they could probably
-    // get faster without becoming off-putting. -MS
+    // zooms now take 500 milliseconds
     new Zoomer(scale, this,
                function() {this.zoomUpdate(zoomLoc, fixedBp);},
-               700, zoomLoc);
+               500, zoomLoc);
 };
 
 GenomeView.prototype.zoomUpdate = function(zoomLoc, fixedBp) {
