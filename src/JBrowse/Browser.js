@@ -17,7 +17,8 @@ define( [
             'JBrowse/GenomeView',
             'JBrowse/TouchScreenSupport',
             'JBrowse/ConfigManager',
-            'JBrowse/View/InfoDialog'
+            'JBrowse/View/InfoDialog',
+            'JBrowse/View/Cloud/gdrive'
         ],
         function(
             lang,
@@ -36,7 +37,8 @@ define( [
             GenomeView,
             Touch,
             ConfigManager,
-            InfoDialog
+            InfoDialog,
+            gdrive
         ) {
 
 var dojof = Util.dojof;
@@ -202,9 +204,10 @@ Browser.prototype.initView = function() {
         title: 'powered by JBrowse'
      }, linkContainer );
 
-    if( this.config.show_nav && this.config.show_tracklist && this.config.show_overview )
+    if( this.config.show_nav && this.config.show_tracklist && this.config.show_overview ){
         linkContainer.appendChild( this.makeShareLink() );
-    else
+        linkContainer.appendChild( this.makeGoogleLink() );
+    } else
         linkContainer.appendChild( this.makeFullViewLink() );
 
     if( this.config.show_nav )
@@ -1044,6 +1047,71 @@ Browser.prototype.globalKeyHandler = function( evt ) {
         evt.stopPropagation();
     }
 };
+Browser.prototype.makeGoogleLink = function () {
+    // don't make the link if we were explicitly configured not to
+    if( ( 'share_link' in this.config ) && !this.config.share_link )
+        return null;
+
+    var browser = this;
+    var googleDrive = new gdrive;
+
+
+    // make the share link
+    var link = dojo.create(
+        'a',
+        {
+            className: 'topLink',
+            href: '#',
+            innerHTML: 'Google',
+            title: 'Load and authorize google stuffs',
+            style: {
+                position: 'relative'
+            },
+            onclick: function() {
+                sharePane.show();
+
+                var lp = dojo.position(link);
+                dojo.style( sharePane.domNode, {
+                               top: (lp.y+lp.h) + 'px',
+                               right: 0,
+                               left: ''
+                            });
+
+                return false;
+            }
+        }
+    );
+
+    // make the 'google' popup
+    var container = dojo.create(
+        'div', { });
+
+    var authLink = dojo.create('input', {
+        id: 'authorizeButton',
+        type: 'button',
+        onclick: function(){
+            googleDrive.authorize();
+        },
+        value: 'Authorize',
+        style: { display: 'inline' }
+    }, container );
+
+
+    var sharePane = new dijitDialog(
+        {
+            className: 'sharePane',
+            title: 'Do stuff with GDrive',
+            draggable: false,
+            content: [
+                container
+            ],
+            autofocus: false,
+            style: "width:200px"
+        });
+
+    return link;
+};
+
 
 Browser.prototype.makeShareLink = function () {
     // don't make the link if we were explicitly configured not to
