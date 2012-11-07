@@ -44,10 +44,16 @@ function reg2bins(beg, end)
     return list;
 }
 
-var Chunk = function(minv,maxv) {
+var Chunk = Util.fastDeclare({
+    constructor: function(minv,maxv,bin) {
         this.minv = minv;
         this.maxv = maxv;
-};
+        this.bin = bin;
+    },
+    toString: function() {
+        return this.minv+'..'+this.maxv+' (bin '+this.bin+')';
+    }
+});
 
 var readInt   = BAMUtil.readInt;
 var readVirtualOffset = BAMUtil.readVirtualOffset;
@@ -89,15 +95,21 @@ var BamFile = declare( null,
         // Do we really need to fetch the whole thing? :-(
         this.bai.fetch( dojo.hitch( this, function(header) {
             if (!header) {
-                dlog("Couldn't access BAI");
-                failCallback();
+                dlog("No data read from BAM index (BAI) file");
+                failCallback("No data read from BAM index (BAI) file");
+                return;
+            }
+
+            if( ! Uint8Array ) {
+                dlog('Browser does not support typed arrays');
+                failCallback('Browser does not support typed arrays');
                 return;
             }
 
             var uncba = new Uint8Array(header);
             if( readInt(uncba, 0) != BAI_MAGIC) {
                 dlog('Not a BAI file');
-                failCallback();
+                failCallback('Not a BAI file');
                 return;
             }
 
@@ -127,7 +139,7 @@ var BamFile = declare( null,
             }
 
             successCallback( this.indices, this.minAlignmentVO );
-        }));
+        }), failCallback );
     },
 
     _readBAMheader: function( successCallback, failCallback ) {
@@ -201,7 +213,7 @@ var BamFile = declare( null,
                 for (var c = 0; c < nchnk; ++c) {
                     var cs = readVirtualOffset(index, p);
                     var ce = readVirtualOffset(index, p + 8);
-                    (bin < 4681 ? otherChunks : leafChunks).push(new Chunk(cs, ce));
+                    (bin < 4681 ? otherChunks : leafChunks).push(new Chunk(cs, ce, bin));
                     p += 16;
                 }
             } else {
@@ -259,7 +271,7 @@ var BamFile = declare( null,
             for (var i = 1; i < intChunks.length; ++i) {
                 var nc = intChunks[i];
                 if (nc.minv.block == cur.maxv.block /* && nc.minv.offset == cur.maxv.offset */) { // no point splitting mid-block
-                    cur = new Chunk(cur.minv, nc.maxv);
+                    cur = new Chunk(cur.minv, nc.maxv, 'linear');
                 } else {
                     mergedChunks.push(cur);
                     cur = nc;
@@ -286,11 +298,7 @@ var BamFile = declare( null,
 
         // toString function is used by the cache for making cache keys
         chunks.toString = function() {
-            var str = '';
-            array.forEach( this, function(c) {
-                str += c.minv+'..'+c.maxv+',';
-            });
-            return str;
+            return this.join(', ');
         };
 
         this.featureCache = this.featureCache || new LRUCache({
@@ -302,14 +310,21 @@ var BamFile = declare( null,
             maxSize: 100000 // cache up to 100,000 BAM features
         });
 
-        this.featureCache.get( chunks, function( features ) {
-            features = array.filter( features, function( feature ) {
-                return ( !( feature.get('end') < min || feature.get('start') > max )
-                         && ( chrId === undefined || feature._refID == chrId ) );
+        try {
+            this.featureCache.get( chunks, function( features, error ) {
+                if( error ) {
+                    callback( null, error );
+                } else {
+                    features = array.filter( features, function( feature ) {
+                        return ( !( feature.get('end') < min || feature.get('start') > max )
+                                 && ( chrId === undefined || feature._refID == chrId ) );
+                    });
+                    callback( features );
+                }
             });
-            callback( features );
-        });
-
+        } catch( e ) {
+            callback( null, e );
+        }
     },
 
     _fetchChunkFeatures: function( chunks, callback ) {
@@ -322,18 +337,24 @@ var BamFile = declare( null,
             return;
         }
 
+        var error;
         array.forEach( chunks, function( c ) {
                 var fetchMin = c.minv.block;
                 var fetchMax = c.maxv.block + (1<<16); // *sigh*
 
                 thisB.data.read(fetchMin, fetchMax - fetchMin + 1, function(r) {
+                    try {
+                        var data = BAMUtil.unbgzf(r, c.maxv.block - c.minv.block + 1);
 
-                    var data = BAMUtil.unbgzf(r, c.maxv.block - c.minv.block + 1);
-
-                    thisB.readBamFeatures( new Uint8Array(data), c.minv.offset, features, function() {
+                        thisB.readBamFeatures( new Uint8Array(data), c.minv.offset, features, function() {
+                            if( ++chunksProcessed == chunks.length )
+                                callback( features, error );
+                        });
+                    } catch( e ) {
+                        error = e;
                         if( ++chunksProcessed == chunks.length )
-                            callback( features );
-                    });
+                                callback( null, error );
+                    }
                 });
         });
     },
@@ -355,13 +376,17 @@ var BamFile = declare( null,
                 var blockSize = readInt(ba, blockStart);
                 var blockEnd = blockStart + blockSize;
 
-                var feature = new BAMFeature({
+                // only try to read the feature if we have all the bytes for it
+                if( blockEnd < ba.length ) {
+                    var feature = new BAMFeature({
                         store: this.store,
                         file: this,
                         bytes: { byteArray: ba, start: blockStart, end: blockEnd }
-                });
-                sink.push(feature);
-                featureCount++;
+                     });
+                    sink.push(feature);
+                    featureCount++;
+                }
+
                 blockStart = blockEnd + 4;
             }
             else {
