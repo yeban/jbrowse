@@ -17,16 +17,14 @@ define(["dojo/_base/declare"], function(declare){
 
         // Check if the current user has authorized the application.
         checkAuth: function() {
-            var that = this;
             window.gapi.auth.authorize(
-                {'client_id': that.CLIENT_ID, 'scope': that.SCOPES, 'immediate': true},
-                dojo.hitch(that, that.handleAuthResult));
+                {'client_id': this.CLIENT_ID, 'scope': [this.SCOPES], 'immediate': true},
+                dojo.hitch( this, 'handleAuthResult' ));
         },
 
 
         // Called when authorization server replies.
         handleAuthResult: function(authResult) {
-            var that = this;
             var authButton = document.getElementById('authorizeButton');
             if (authResult && !authResult.error) {
                 console.log("pre authorized");
@@ -34,8 +32,8 @@ define(["dojo/_base/declare"], function(declare){
             } else {
                 // No access token could be retrieved, show the button to start the authorization flow.
                 window.gapi.auth.authorize(
-                  {'client_id': that.CLIENT_ID, 'scope': that.SCOPES, 'immediate': false},
-                  dojo.hitch(that, that.handleAuthResult));
+                  {'client_id': this.CLIENT_ID, 'scope': [this.SCOPES], 'immediate': false},
+                  dojo.hitch(this, 'handleAuthResult'));
             }
         }
     });
