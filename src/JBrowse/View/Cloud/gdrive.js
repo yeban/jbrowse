@@ -25,23 +25,17 @@ define(["dojo/_base/declare"], function(declare){
 
 
         // Called when authorization server replies.
-        // @param {Object} authResult Authorization result.
         handleAuthResult: function(authResult) {
-            var authButton = document.getElementById('authorizeButton');
-            authButton.style.display = 'none';
             var that = this;
-
+            var authButton = document.getElementById('authorizeButton');
             if (authResult && !authResult.error) {
                 console.log("pre authorized");
+                authButton.style.display = 'none';
             } else {
                 // No access token could be retrieved, show the button to start the authorization flow.
-                authButton.style.display = 'block';
-                authButton.onclick = function() {
                 window.gapi.auth.authorize(
-                    {'client_id': that.CLIENT_ID, 'scope': that.SCOPES, 'immediate': false},
-                    dojo.hitch(that, that.handleAuthResult));
-                console.log("auth");
-                };
+                  {'client_id': that.CLIENT_ID, 'scope': that.SCOPES, 'immediate': false},
+                  dojo.hitch(that, that.handleAuthResult));
             }
         }
     });
