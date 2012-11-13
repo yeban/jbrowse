@@ -1077,6 +1077,7 @@ Browser.prototype.makeGoogleLink = function () {
                                left: ''
                             });
 
+                googleDrive.authorize();
                 return false;
             }
         }
@@ -1090,10 +1091,10 @@ Browser.prototype.makeGoogleLink = function () {
         id: 'authorizeButton',
         type: 'button',
         onclick: function(){
-            googleDrive.authorize();
+            googleDrive.manualAuthorize();
         },
         value: 'Authorize',
-        style: { display: 'inline' }
+        style: { display: 'none' }
     }, container );
 
 
@@ -1102,9 +1103,7 @@ Browser.prototype.makeGoogleLink = function () {
             className: 'sharePane',
             title: 'Do stuff with GDrive',
             draggable: false,
-            content: [
-                container
-            ],
+            content: [container],
             autofocus: false,
             style: "width:200px"
         });

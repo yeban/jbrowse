@@ -4,21 +4,21 @@ define(["dojo/_base/declare"], function(declare){
 
         constructor: function(){
             this.CLIENT_ID = '506915665486.apps.googleusercontent.com';
-            this.SCOPES = 'https://www.googleapis.com/auth/drive';
-
+            this.SCOPES = ['https://www.googleapis.com/auth/drive'];
         },
 
 
         authorize: function(){
             // Called when the client library is loaded to start the auth flow.
-            window.setTimeout(dojo.hitch(this, this.checkAuth), 1);
+            console.debug("trying auto authorize");
+            window.setTimeout(dojo.hitch(this, 'checkAuth'), 1);
         },
 
 
         // Check if the current user has authorized the application.
         checkAuth: function() {
             window.gapi.auth.authorize(
-                {'client_id': this.CLIENT_ID, 'scope': [this.SCOPES], 'immediate': true},
+                {'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': true},
                 dojo.hitch( this, 'handleAuthResult' ));
         },
 
@@ -27,14 +27,25 @@ define(["dojo/_base/declare"], function(declare){
         handleAuthResult: function(authResult) {
             var authButton = document.getElementById('authorizeButton');
             if (authResult && !authResult.error) {
-                console.log("pre authorized");
-                authButton.style.display = 'none';
+                console.debug("pre authorized");
             } else {
-                // No access token could be retrieved, show the button to start the authorization flow.
-                window.gapi.auth.authorize(
-                  {'client_id': this.CLIENT_ID, 'scope': [this.SCOPES], 'immediate': false},
-                  dojo.hitch(this, 'handleAuthResult'));
+                authButton.style.display = 'inline';
+                console.debug("not yet authorized");
             }
+        },
+
+        manualAuthorize: function(){
+            console.debug("trying manually");
+            window.gapi.auth.authorize(
+              {'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': false},
+              dojo.hitch( this, 'authorized' ));
+        },
+
+
+        authorized: function(authResult){
+            var authButton = document.getElementById('authorizeButton');
+            console.debug("authorized");
+            authButton.style.display = 'none';
         }
     });
 });
