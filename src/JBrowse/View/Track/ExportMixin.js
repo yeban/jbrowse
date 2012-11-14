@@ -71,6 +71,23 @@ return {
               }.call(this)
             + ' </fieldset>'
             + ' '
+            + ' <fieldset class="saveto">'
+            + '   <legend>Save to</legend>'
+            + function() {
+
+                    var dlSource = '<input type="radio" checked="checked" data-dojo-type="dijit.form.RadioButton"'
+                        + ' name="saveto" id="hdd" value="Hard Drive" />'
+                        + '<label for="hdd">Hard Drive</label><br>'
+
+                        + '<input type="radio" data-dojo-type="dijit.form.RadioButton" name="saveto"'
+                        + ' id="gd" value="Google Drive" />'
+                        + '<label for="gd">Google Drive</label><br>';
+
+                   return dlSource;
+
+              }.call(this)
+            + ' </fieldset>'
+            + ' '
             + ' <fieldset class="format">'
             + '   <legend>Format</legend>'
             + function() {
