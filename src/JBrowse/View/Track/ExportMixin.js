@@ -3,11 +3,12 @@ define( [
             'dojo/aspect',
             'dojo/has',
             'JBrowse/Util',
+            'JBrowse/View/Cloud/gdriveUpload',
             'dijit/form/Button',
             'dijit/form/RadioButton',
             'dijit/Dialog'
         ],
-        function( array, aspect, has, Util, dijitButton, dijitRadioButton, dijitDialog ) {
+        function( array, aspect, has, Util, gdriveUpload, dijitButton, dijitRadioButton, dijitDialog ) {
 /**
  * Mixin for a track that can export its data.
  * @lends JBrowse.View.Track.ExportMixin
@@ -43,7 +44,6 @@ return {
     _exportDialogContent: function() {
         // note that the `this` for this content function is not the track, it's the menu-rendering context
         var possibleRegions = this.track._possibleExportRegions();
-
         // for each region, calculate its length and determine whether we can export it
         array.forEach( possibleRegions, function( region ) {
             region.length = Math.round( region.end - region.start + 1 );
@@ -75,12 +75,13 @@ return {
             + '   <legend>Save to</legend>'
             + function() {
 
-                    var dlSource = '<input type="radio" checked="checked" data-dojo-type="dijit.form.RadioButton"'
-                        + ' name="saveto" id="hdd" value="Hard Drive" />'
+                    var dlSource = ''
+                        + '<input type="radio" checked="checked" data-dojo-type="dijit.form.RadioButton"'
+                        +     ' name="saveto" id="hdd" value="Hard Drive" />'
                         + '<label for="hdd">Hard Drive</label><br>'
 
                         + '<input type="radio" data-dojo-type="dijit.form.RadioButton" name="saveto"'
-                        + ' id="gd" value="Google Drive" />'
+                        +     ' id="gd" value="Google Drive" />'
                         + '<label for="gd">Google Drive</label><br>';
 
                    return dlSource;
@@ -121,6 +122,7 @@ return {
 
                             var region = this._readRadio( form.elements.region );
                             var format = this._readRadio( form.elements.format );
+                            var saveto = this._readRadio( form.elements.saveto );
                             this.exportRegion( region, format, function(output) {
                                 dialog.hide();
                                 var text = dojo.create('textarea', {
@@ -151,8 +153,9 @@ return {
                                             label: 'Save',
                                             onClick: dojo.hitch(this, function() {
                                                 exportView.hide();
-                                                window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
+                                                dojo.hitch(this, "saveTrack", "output", "saveto");//TODO fix this line see :185?
                                             })
+
                                         }).placeAt(actionBar);
                                 }
 
@@ -165,7 +168,6 @@ return {
                             });
                           })})
             .placeAt( actionBar );
-
         // don't show a download button if the user is using IE older
         // than 10, cause it won't work.
         if( ! (has('ie') < 10) ) {
@@ -175,17 +177,27 @@ return {
                               onClick: dojo.hitch( this.track, function() {
                                 var format = this._readRadio( form.elements.format );
                                 var region = this._readRadio( form.elements.region );
+                                var saveto = this._readRadio( form.elements.saveto );
                                 dlButton.set('disabled',true);
                                 dlButton.set('iconClass','jbrowseIconBusy');
-                                this.exportRegion( region, format, function( output ) {
-                                    dialog.hide();
-                                    window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
-                                });
+                                this.exportRegion( region, format, dojo.hitch(this,function( output ) {
+                                      dialog.hide();
+                                      this.saveTrack(output, format, saveto);
+                                  }));
                               })})
                 .placeAt( actionBar );
         }
 
         return [ form, actionBar ];
+    },
+
+    saveTrack: function (output,format, saveto) {
+        
+            if (saveto === 'Hard Drive') {
+                window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
+            } else if(saveto === 'Google Drive') {
+                alert ("Mic check, 1...2...3...4...5...6...7...8...9...10");
+            } 
     },
 
     // cross-platform function for (portably) reading the value of a radio control. sigh. *rolls eyes*

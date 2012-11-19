@@ -18,7 +18,7 @@ define( [
             'JBrowse/TouchScreenSupport',
             'JBrowse/ConfigManager',
             'JBrowse/View/InfoDialog',
-            'JBrowse/View/Cloud/gdrive'
+            'JBrowse/View/Cloud/gdriveAuth'
         ],
         function(
             lang,
@@ -38,7 +38,7 @@ define( [
             Touch,
             ConfigManager,
             InfoDialog,
-            gdrive
+            googleAuth
         ) {
 
 var dojof = Util.dojof;
@@ -1053,7 +1053,7 @@ Browser.prototype.makeGoogleLink = function () {
         return null;
 
     var browser = this;
-    var googleDrive = new gdrive;
+    var google = new googleAuth;
 
 
     // make the share link
@@ -1077,7 +1077,7 @@ Browser.prototype.makeGoogleLink = function () {
                                left: ''
                             });
 
-                googleDrive.authorize();
+                google.authorize();
                 return false;
             }
         }
@@ -1091,7 +1091,7 @@ Browser.prototype.makeGoogleLink = function () {
         id: 'authorizeButton',
         type: 'button',
         onclick: function(){
-            googleDrive.manualAuthorize();
+            google.manualAuthorize();
         },
         value: 'Authorize',
         style: { display: 'none' }
