@@ -33,7 +33,8 @@ define(["dojo/_base/declare"], function(declare){
                 console.debug("not yet authorized");
             }
         },
-
+        
+        // Open google menu for login
         manualAuthorize: function(){
             console.debug("trying manually");
             window.gapi.auth.authorize(
@@ -41,7 +42,7 @@ define(["dojo/_base/declare"], function(declare){
               dojo.hitch( this, 'authorized' ));
         },
 
-
+        // fully authorized
         authorized: function(authResult){
             var authButton = document.getElementById('authorizeButton');
             console.debug("authorized");

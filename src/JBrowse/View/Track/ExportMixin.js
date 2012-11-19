@@ -196,7 +196,8 @@ return {
             if (saveto === 'Hard Drive') {
                 window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
             } else if(saveto === 'Google Drive') {
-                alert ("Mic check, 1...2...3...4...5...6...7...8...9...10");
+                gdriveUploader = new gdriveUpload;
+                gdriveUploader.uploadFile(output, null);
             } 
     },
 
@@ -261,15 +262,9 @@ return {
         else {
             // if we know the store's feature density, then use that with
             // a limit of maxExportFeatures or 5,000 features
-            var thisB = this;
-            var storeStats = {};
-            // will return immediately if the stats are available
-            this.store.getGlobalStats( function( s ) {
-                storeStats = s;
-            });
-            if( storeStats.featureDensity ) {
-                return storeStats.featureDensity*(l.end - l.start) <= ( thisB.config.maxExportFeatures || 5000 );
-            }
+            var storeStats = this.store.getGlobalStats();
+            if( storeStats.featureDensity )
+                return storeStats.featureDensity*(l.end - l.start) <= ( this.config.maxExportFeatures || 5000 );
         }
 
         // otherwise, i guess we can export
