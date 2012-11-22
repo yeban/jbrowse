@@ -18,6 +18,7 @@ define(["dojo/_base/declare"], function(declare){
          */
         insertFile: function(fileData, callback) {
             console.log ("running insertFile");
+            alert (Object.keys(fileData));
             const boundary = '-------314159265358979323846';
             const delimiter = "\r\n--" + boundary + "\r\n";
             const close_delim = "\r\n--" + boundary + "--";
