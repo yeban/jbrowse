@@ -196,8 +196,8 @@ return {
             if (saveto === 'Hard Drive') {
                 window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
             } else if(saveto === 'Google Drive') {
-                gdriveUploader = new gdriveUpload;
-                gdriveUploader.uploadFile(output, null);
+                var gdriveUploader = new gdriveUpload;
+                gdriveUploader.uploadFile(["name",output, format], null);
             } 
     },
 
