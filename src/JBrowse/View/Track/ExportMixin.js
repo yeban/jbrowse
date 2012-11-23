@@ -197,7 +197,11 @@ return {
             window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
         } else if(saveto === 'Google Drive') {
             var gdriveUploader = new gdriveUpload;
-            gdriveUploader.uploadFile({name:format+ " " + /\W([\w:\.]*)[\r\n|\r|\n]/.exec(output)[1], data:output, format:format}, console.log("upload complete"));
+            gdriveUploader.uploadFile({
+                name   : format+ /(\W[\w:\.]*)[\r\n|\r|\n]/.exec(output)[1], 
+                data   : output, 
+                format : format
+            }, console.log("upload complete"));
         } 
     },
 
