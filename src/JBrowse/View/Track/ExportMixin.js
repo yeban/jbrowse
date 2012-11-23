@@ -44,6 +44,7 @@ return {
     _exportDialogContent: function() {
         // note that the `this` for this content function is not the track, it's the menu-rendering context
         var possibleRegions = this.track._possibleExportRegions();
+
         // for each region, calculate its length and determine whether we can export it
         array.forEach( possibleRegions, function( region ) {
             region.length = Math.round( region.end - region.start + 1 );
@@ -168,6 +169,7 @@ return {
                             });
                           })})
             .placeAt( actionBar );
+
         // don't show a download button if the user is using IE older
         // than 10, cause it won't work.
         if( ! (has('ie') < 10) ) {
@@ -266,9 +268,15 @@ return {
         else {
             // if we know the store's feature density, then use that with
             // a limit of maxExportFeatures or 5,000 features
-            var storeStats = this.store.getGlobalStats();
-            if( storeStats.featureDensity )
-                return storeStats.featureDensity*(l.end - l.start) <= ( this.config.maxExportFeatures || 5000 );
+            var thisB = this;
+            var storeStats = {};
+            // will return immediately if the stats are available
+            this.store.getGlobalStats( function( s ) {
+                storeStats = s;
+            });
+            if( storeStats.featureDensity ) {
+                return storeStats.featureDensity*(l.end - l.start) <= ( thisB.config.maxExportFeatures || 5000 );
+            }
         }
 
         // otherwise, i guess we can export
