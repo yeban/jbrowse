@@ -6,7 +6,6 @@ define(["dojo/_base/declare"], function(declare){
         },
 
         uploadFile: function(data, callback) {
-            console.debug("'this' is : " + Object.keys(this));
             window.gapi.client.load('drive', 'v2', dojo.hitch(this,'insertFile', data, callback));
         },
 
@@ -17,8 +16,6 @@ define(["dojo/_base/declare"], function(declare){
          * @param {Function} callback Function to call when the request is complete.
          */
         insertFile: function(fileData, callback) {
-            console.log ("running insertFile");
-            alert (Object.keys(fileData));
             const boundary = '-------314159265358979323846';
             const delimiter = "\r\n--" + boundary + "\r\n";
             const close_delim = "\r\n--" + boundary + "--";

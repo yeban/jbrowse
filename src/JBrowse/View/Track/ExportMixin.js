@@ -192,13 +192,13 @@ return {
     },
 
     saveTrack: function (output,format, saveto) {
-        
-            if (saveto === 'Hard Drive') {
-                window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
-            } else if(saveto === 'Google Drive') {
-                var gdriveUploader = new gdriveUpload;
-                gdriveUploader.uploadFile({name:"name", data:output, format:format}, alert("upload complete"));
-            } 
+        console.debug (output); 
+        if (saveto === 'Hard Drive') {
+            window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
+        } else if(saveto === 'Google Drive') {
+            var gdriveUploader = new gdriveUpload;
+            gdriveUploader.uploadFile({name:format+ " " + /\W([\w:\.]*)[\r\n|\r|\n]/.exec(output)[1], data:output, format:format}, console.log("upload complete"));
+        } 
     },
 
     // cross-platform function for (portably) reading the value of a radio control. sigh. *rolls eyes*
