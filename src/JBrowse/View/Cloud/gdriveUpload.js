@@ -16,9 +16,9 @@ define(["dojo/_base/declare"], function(declare){
          * @param {Function} callback Function to call when the request is complete.
          */
         insertFile: function(fileData, callback) {
-            const boundary = '-------314159265358979323846';
-            const delimiter = "\r\n--" + boundary + "\r\n";
-            const close_delim = "\r\n--" + boundary + "--";
+            var boundary = '-------314159265358979323846';
+            var delimiter = "\r\n--" + boundary + "\r\n";
+            var close_delim = "\r\n--" + boundary + "--";
             var contentType = fileData.type || 'application/octet-stream';
             var metadata = {
                 'title': fileData.name,
