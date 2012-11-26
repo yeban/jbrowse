@@ -121,6 +121,7 @@ return {
                             viewButton.set('disabled',true);
                             viewButton.set('iconClass','jbrowseIconBusy');
 
+                            var that = this;
                             var region = this._readRadio( form.elements.region );
                             var format = this._readRadio( form.elements.format );
                             var saveto = this._readRadio( form.elements.saveto );
@@ -154,7 +155,7 @@ return {
                                             label: 'Save',
                                             onClick: dojo.hitch(this, function() {
                                                 exportView.hide();
-                                                dojo.hitch(this, "saveTrack", "output", "saveto");//TODO fix this line see :185?
+                                                that.saveTrack( output, format, saveto);
                                             })
 
                                         }).placeAt(actionBar);
