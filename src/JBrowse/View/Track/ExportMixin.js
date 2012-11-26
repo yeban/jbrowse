@@ -155,7 +155,7 @@ return {
                                             label: 'Save',
                                             onClick: dojo.hitch(this, function() {
                                                 exportView.hide();
-                                                that.saveTrack( output, format, saveto);
+                                                that.saveTrack( output, format, saveto, region);
                                             })
 
                                         }).placeAt(actionBar);
@@ -185,7 +185,7 @@ return {
                                 dlButton.set('iconClass','jbrowseIconBusy');
                                 this.exportRegion( region, format, dojo.hitch(this,function( output ) {
                                       dialog.hide();
-                                      this.saveTrack(output, format, saveto);
+                                      this.saveTrack(output, format, saveto, region);
                                   }));
                               })})
                 .placeAt( actionBar );
@@ -194,14 +194,14 @@ return {
         return [ form, actionBar ];
     },
 
-    saveTrack: function (output,format, saveto) {
+    saveTrack: function (output,format, saveto, region) {
         console.debug (output); 
         if (saveto === 'Hard Drive') {
             window.location.href="data:application/x-"+format.toLowerCase()+","+escape(output);
         } else if(saveto === 'Google Drive') {
             var gdriveUploader = new gdriveUpload;
             gdriveUploader.uploadFile({
-                name   : format+ /(\W[\w:\.]*)[\r\n|\r|\n]/.exec(output)[1], 
+                name   : format + ' ' + region,
                 data   : output, 
                 format : format
             }, console.log("upload complete"));
