@@ -19,7 +19,7 @@ define(["dojo/_base/declare"], function(declare){
             var boundary = '-------314159265358979323846';
             var delimiter = "\r\n--" + boundary + "\r\n";
             var close_delim = "\r\n--" + boundary + "--";
-            var contentType = fileData.type || 'application/octet-stream';
+            var contentType = fileData.format ? 'application/x-'+ fileData.format.toLowerCase() : 'application/octet-stream';
             var metadata = {
                 'title': fileData.name,
                 'mimeType': contentType
