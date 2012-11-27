@@ -52,13 +52,12 @@ define(["dojo/_base/declare"], function(declare){
         },
 
         // fully authorized
-        authorized: function(authResult){
-            if (this.silent == undefined){
+        authorized: function(authResult){       
+            console.debug("Authorized");
+            if (this.silent !== 'silent'){
                 var authButton = document.getElementById('authorizeButton');
                 authButton.style.display = 'none';
-            }
-            console.debug("authorized");
-            if(this.callback){
+            } else if(this.callback){
                  this.callback();
             }
         }

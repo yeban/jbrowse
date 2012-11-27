@@ -29,7 +29,8 @@ define( [
             var boundary = '-------314159265358979323846';
             var delimiter = "\r\n--" + boundary + "\r\n";
             var close_delim = "\r\n--" + boundary + "--";
-            var contentType = fileData.format ? 'application/x-'+ fileData.format.toLowerCase() : 'application/octet-stream';
+            var contentType = 'text/plain'//fileData.format ? 'application/x-'+ fileData.format.toLowerCase() : 'text/plain';
+            // ^ remove 'text/plain' and uncomment the rest of the line for proper MIME types.
             var metadata = {
                 'title': fileData.name,
                 'mimeType': contentType
