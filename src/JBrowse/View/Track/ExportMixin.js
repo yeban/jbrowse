@@ -201,11 +201,10 @@ return {
         } else if(saveto === 'Google Drive') {
             var gdriveUploader = new gdriveUpload;
             gdriveUploader.uploadFile({
-                name   : format + ' ' + region,
+                name   : region + '.' + format.toLowerCase(),
                 data   : output, 
                 format : format
-            }, console.log("upload complete"));
-        } 
+            }, console.log("file uploaded"));        } 
     },
 
     // cross-platform function for (portably) reading the value of a radio control. sigh. *rolls eyes*

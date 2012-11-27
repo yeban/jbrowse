@@ -2,9 +2,11 @@ define(["dojo/_base/declare"], function(declare){
     return declare(null, {
 
 
-        constructor: function(){
+        constructor: function(silent, callback){
             this.CLIENT_ID = '506915665486.apps.googleusercontent.com';
             this.SCOPES = ['https://www.googleapis.com/auth/drive'];
+            this.silent = silent;
+            this.callback = callback;
         },
 
 
@@ -25,12 +27,19 @@ define(["dojo/_base/declare"], function(declare){
 
         // Called when authorization server replies.
         handleAuthResult: function(authResult) {
-            var authButton = document.getElementById('authorizeButton');
             if (authResult && !authResult.error) {
                 console.debug("pre authorized");
+                if(this.callback){
+                    this.callback();
+                }
             } else {
-                authButton.style.display = 'inline';
                 console.debug("not yet authorized");
+                if (this.silent !== 'silent'){
+                    var authButton = document.getElementById('authorizeButton');
+                    authButton.style.display = 'inline';
+                } else {
+                    this.manualAuthorize();
+                }
             }
         },
         
@@ -44,9 +53,14 @@ define(["dojo/_base/declare"], function(declare){
 
         // fully authorized
         authorized: function(authResult){
-            var authButton = document.getElementById('authorizeButton');
+            if (this.silent == undefined){
+                var authButton = document.getElementById('authorizeButton');
+                authButton.style.display = 'none';
+            }
             console.debug("authorized");
-            authButton.style.display = 'none';
+            if(this.callback){
+                 this.callback();
+            }
         }
     });
 });

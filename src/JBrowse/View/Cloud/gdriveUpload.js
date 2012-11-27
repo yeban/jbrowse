@@ -1,14 +1,24 @@
-define(["dojo/_base/declare"], function(declare){
+define( [
+        'dojo/_base/declare',
+        'JBrowse/View/Cloud/gdriveAuth'
+    ],
+    function(declare, googleAuth) {
+   
     return declare(null, {
-
 
         constructor: function(){
         },
 
         uploadFile: function(data, callback) {
-            window.gapi.client.load('drive', 'v2', dojo.hitch(this,'insertFile', data, callback));
+            var gAuth = new googleAuth('silent', dojo.hitch(this,'upload', data, callback));
+            gAuth.authorize();
         },
 
+        upload: function(data, callback) {
+            window.gapi.client.load('drive', 'v2', dojo.hitch(this,'insertFile', data, callback));
+
+        },    
+               
         /**
          * Insert new file.
          *
