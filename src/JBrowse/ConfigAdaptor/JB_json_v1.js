@@ -32,12 +32,14 @@ return declare('JBrowse.ConfigAdaptor.JB_json_v1',null,
         load: function( /**Object*/ args ) {
             var that = this;
             if( args.config.url ) {
+                var sourceUrl = Util.resolveUrl( args.baseUrl || window.location.href, args.config.url );
                 dojo.xhrGet({
-                                url: Util.resolveUrl( args.baseUrl || window.location.href, args.config.url ),
+                                url: sourceUrl,
                                 handleAs: 'text',
                                 load: function( o ) {
                                     window.setTimeout( dojo.hitch(this, function() {
                                     o = that.parse_conf( o, args );
+                                    o.sourceUrl = sourceUrl;
                                     o = that.regularize_conf( o, args );
                                     args.onSuccess.call( args.context || this, o );
                                                                   }, 10 ));
@@ -84,6 +86,7 @@ return declare('JBrowse.ConfigAdaptor.JB_json_v1',null,
             // set a default baseUrl in each of the track confs if needed
             if( o.sourceUrl ) {
                 dojo.forEach( o.tracks || [], function(t) {
+
                                   if( ! t.baseUrl )
                                       t.baseUrl = o.baseUrl || '/';
                               },this);
@@ -100,6 +103,20 @@ return declare('JBrowse.ConfigAdaptor.JB_json_v1',null,
             conf.stores = conf.stores || {};
 
             array.forEach( conf.tracks || [], function( trackConfig ) {
+
+                // if there is a `config` subpart,
+                // just copy its keys in to the
+                // top-level config
+                if( trackConfig.config ) {
+                    var c = trackConfig.config;
+                    delete trackConfig.config;
+                    for( var prop in c ) {
+                        if( !(prop in trackConfig) && c.hasOwnProperty(prop) ) {
+                            trackConfig[prop] = c[prop];
+                        }
+                    }
+                }
+
                 // skip if it's a new-style track def
                 if( trackConfig.store )
                     return;
@@ -153,6 +170,7 @@ return declare('JBrowse.ConfigAdaptor.JB_json_v1',null,
 
                 // connect it to the track conf
                 trackConfig.store = storeConf.name;
+
             }, this);
 
             return conf;

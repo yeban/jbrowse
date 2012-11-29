@@ -18,7 +18,8 @@ constructor: function( args ) {
     this.defaults = dojo.clone( args.defaults || {} );
     this.browser = args.browser;
     this.skipValidation = args.skipValidation;
-    this.topLevelIncludes = this.config.include;
+    this.topLevelIncludes = this.config.include || this.defaults.include;
+    delete this.defaults.include;
     delete this.config.include;
 },
 
@@ -36,7 +37,7 @@ getFinalConfig: function( callback ) {
 
         // now validate the final merged config, and finally give it
         // to the callback
-        this._applyDefaults( this.config, this.defaults );
+        this.config = this._applyDefaults( this.config, this.defaults );
         if( ! this.skipValidation )
             this._validateConfig( this.config );
         callback( this.config );

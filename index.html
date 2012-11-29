@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="Content-Type" content = "text/html; charset=utf-8">
     <title>JBrowse</title>
-    <link rel="stylesheet" type="text/css" href="genome.css"></link>
+    <link rel="stylesheet" type="text/css" href="genome.css">
     <script type="text/javascript" src="src/dojo/dojo.js" data-dojo-config="isDebug: 1, async: 1"></script>
     <script type="text/javascript" src="https://apis.google.com/js/client.js"></script>
     <script type="text/javascript">
@@ -12,7 +12,9 @@
         }
 
         var JBrowse;
-        require({ baseUrl: 'src', packages: ['JBrowse','dojo','dijit','dojox','jszlib'] },
+        require( { baseUrl: 'src',
+                   packages: [ 'JBrowse', 'dojo', 'dijit', 'dojox', 'jszlib' ]
+                 },
             [ 'JBrowse/Browser', 'dojo/io-query' ],
             function (Browser,ioQuery) {
                    var queryParams = ioQuery.queryToObject( window.location.search.slice(1) );
@@ -32,8 +34,7 @@
                                            forceTracks: queryParams.tracks,
                                            show_nav: queryParams.nav,
                                            show_tracklist: queryParams.tracklist,
-                                           show_overview: queryParams.overview,
-                                           config_list: queryParams.config
+                                           show_overview: queryParams.overview
                                        });
         });
     </script>

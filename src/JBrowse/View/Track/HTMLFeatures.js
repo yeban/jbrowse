@@ -50,12 +50,19 @@ var HTMLFeatures = declare( BlockBased, {
         //number of histogram bins per block
         this.numBins = 25;
         this.histLabel = false;
-        this.padding = 5;
+
+        this.defaultPadding = 5;
+        this.padding = this.defaultPadding;
+
+        this.glyphHeightPad = 1;
+        this.levelHeightPad = 2;
+        this.labelPad = 1;
+
         this.trackPadding = args.trackPadding;
 
         this.heightCache = {}; // cache for the heights of some
                                // feature elements, indexed by the
-                               // complete className of the feature
+                               // complete cassName of the feature
 
         // make a default click event handler
         if( ! (this.config.events||{}).click ) {
@@ -114,7 +121,6 @@ HTMLFeatures = declare( HTMLFeatures,
             description: true,
 
             maxFeatureScreenDensity: 0.5,
-            layoutPitchY: 6,
 
             style: {
                 className: "feature2",
@@ -152,10 +158,11 @@ HTMLFeatures = declare( HTMLFeatures,
     defaultFeatureDetail: function( /** JBrowse.Track */ track, /** Object */ f, /** HTMLElement */ featDiv, /** HTMLElement */ container ) {
         var fmt = dojo.hitch( this, '_fmtDetailField' );
         container = container || dojo.create('div', { className: 'detail feature-detail feature-detail-'+track.name, innerHTML: '' } );
-        container.innerHTML += fmt( 'Name', f.get('name') );
-        container.innerHTML += fmt( 'Type', f.get('type') );
-        container.innerHTML += fmt( 'Description', f.get('note') );
-        container.innerHTML += fmt(
+        var coreDetails = dojo.create('div', { className: 'core' }, container );
+        coreDetails.innerHTML += fmt( 'Name', f.get('name') );
+        coreDetails.innerHTML += fmt( 'Type', f.get('type') );
+        coreDetails.innerHTML += fmt( 'Description', f.get('note') );
+        coreDetails.innerHTML += fmt(
             'Position',
             Util.assembleLocString({ start: f.get('start'),
                                      end: f.get('end'),
@@ -163,13 +170,18 @@ HTMLFeatures = declare( HTMLFeatures,
                                      strand: f.get('strand')
                                    })
         );
-        container.innerHTML += fmt( 'Length', Util.addCommas(f.get('end')-f.get('start'))+' b' );
+        coreDetails.innerHTML += fmt( 'Length', Util.addCommas(f.get('end')-f.get('start'))+' bp' );
 
         // render any additional tags as just key/value
         var additionalTags = array.filter( f.tags(), function(t) { return ! {name:1,start:1,end:1,strand:1,note:1,subfeatures:1,type:1}[t.toLowerCase()]; });
-        dojo.forEach( additionalTags.sort(), function(t) {
-            container.innerHTML += fmt( t, f.get(t) );
-        });
+        if( additionalTags.length ) {
+            var at_html = '<div class="additional"><h2>Attributes</h2>';
+            dojo.forEach( additionalTags.sort(), function(t) {
+                at_html += fmt( t, f.get(t) );
+            });
+            at_html += '</div>';
+            container.innerHTML += at_html;
+        }
 
         // render the sequence underlying this feature if possible
         var field_container = dojo.create('div', { className: 'field_container feature_sequence' }, container );
@@ -186,6 +198,7 @@ HTMLFeatures = declare( HTMLFeatures,
             if( refSeqStore ) {
                 refSeqStore.getFeatures(
                     { ref: this.refSeq.name, start: f.get('start'), end: f.get('end')},
+                    // feature callback
                     dojo.hitch( this, function( feature ) {
                         var seq = feature.get('seq');
                         valueContainer = dojo.byId(valueContainerID) || valueContainer;
@@ -205,9 +218,17 @@ HTMLFeatures = declare( HTMLFeatures,
                                                f.get('strand') == -1 ? Util.revcom(seq) : seq,
                                                valueContainer
                                            );
-                }));
+                  }),
+                  // end callback
+                  function() {},
+                  // error callback
+                  dojo.hitch( this, function() {
+                      valueContainer = dojo.byId(valueContainerID) || valueContainer;
+                      valueContainer.innerHTML = '<span class="ghosted">reference sequence not available</span>';
+                  })
+                );
             } else {
-                valueContainer.innerHTML = '<span class="ghosted">reference sequences not loaded</span>';
+                valueContainer.innerHTML = '<span class="ghosted">reference sequence not available</span>';
             }
         }));
 
@@ -315,7 +336,7 @@ HTMLFeatures = declare( HTMLFeatures,
                 if (!(typeof hist[bin] == 'number' && isFinite(hist[bin])))
                     continue;
                 binDiv = document.createElement("div");
-	        binDiv.className = "hist "+track.config.style.className + "-hist";
+	        binDiv.className = "hist feature-hist "+track.config.style.className + "-hist";
                 binDiv.style.cssText =
                     "left: " + ((bin / track.numBins) * 100) + "%; "
                     + "height: "
@@ -445,7 +466,7 @@ HTMLFeatures = declare( HTMLFeatures,
             dojo.hitch( this, function( stats ) {
 
                 var density          = stats.featureDensity;
-                var histScale        = this.config.style.histScale  || density * this.config.style._defaultHistScale;
+                var histScale        = this.config.style.histScale || density * this.config.style._defaultHistScale;
 
                 // only update the label once for each block size
                 var blockBases = Math.abs( leftBase-rightBase );
@@ -469,12 +490,10 @@ HTMLFeatures = declare( HTMLFeatures,
                 // features on the screen, and display a message if it's
                 // bigger than maxFeatureScreenDensity
                 else if( stats.featureDensity / scale > this.config.maxFeatureScreenDensity ) {
-                    this.fillMessage(
+                    this.fillTooManyFeaturesMessage(
                         blockIndex,
                         block,
-                        'Too many features to show'
-                            + (scale >= this.browser.view.maxPxPerBp ? '': '; zoom in to see detail')
-                            + '.'
+                        scale
                     );
                 }
                 else {
@@ -488,6 +507,16 @@ HTMLFeatures = declare( HTMLFeatures,
                                       containerStart, containerEnd);
                 }
         }));
+    },
+
+    fillTooManyFeaturesMessage: function( blockIndex, block, scale ) {
+        this.fillMessage(
+            blockIndex,
+            block,
+            'Too many features to show'
+                + (scale >= this.browser.view.maxPxPerBp ? '': '; zoom in to see detail')
+                + '.'
+        );
     },
 
     /**
@@ -574,13 +603,14 @@ HTMLFeatures = declare( HTMLFeatures,
 	        if ( sourceSlot.layoutEnd > destLeft
 		     && sourceSlot.feature.get('start') < destRight ) {
 
-                         sourceBlock.removeChild(sourceSlot);
+                         sourceSlot.parentNode.removeChild(sourceSlot);
+
                          delete sourceBlock.featureNodes[ overlaps[i] ];
 
-                         var featDiv =
-                             this.renderFeature(sourceSlot.feature, overlaps[i],
-                                                destBlock, scale, sourceSlot._labelScale, sourceSlot._descriptionScale,
-                                                containerStart, containerEnd, destBlock );
+		         /* feature render, adding to block, centering refactored into addFeatureToBlock() */
+		         var featDiv = this.addFeatureToBlock( sourceSlot.feature, overlaps[i],
+							 destBlock, scale, sourceSlot._labelScale, sourceSlot._descriptionScale,
+							 containerStart, containerEnd );
                      }
             }
         }
@@ -614,10 +644,11 @@ HTMLFeatures = declare( HTMLFeatures,
 
         var curTrack = this;
         var featCallback = dojo.hitch(this,function( feature ) {
-            var uniqueId = feature._uniqueID;
+            var uniqueId = feature.id();
             if( ! this._featureIsRendered( uniqueId ) ) {
-                this.renderFeature( feature, uniqueId, block, scale, labelScale, descriptionScale,
-                                    containerStart, containerEnd, block );
+		/* feature render, adding to block, centering refactored into addFeatureToBlock() */
+		var featDiv = this.addFeatureToBlock( feature, uniqueId, block, scale, labelScale, descriptionScale,
+                                                      containerStart, containerEnd );
             }
         });
 
@@ -639,6 +670,19 @@ HTMLFeatures = declare( HTMLFeatures,
                                 }
                               );
     },
+
+    /** 
+     *  GAH refactored code chunk of creating feature div, adding to block, centering, 
+     *     this allow subclass override where block may have substructure.
+     */
+    addFeatureToBlock: function( feature, uniqueId, block, scale, labelScale, descriptionScale,
+                                 containerStart, containerEnd ) {
+        var featDiv = this.renderFeature( feature, uniqueId, block, scale, labelScale, descriptionScale,
+                                          containerStart, containerEnd );
+        block.appendChild( featDiv );
+        this._centerFeatureElements( featDiv );
+	return featDiv;
+    }, 
 
     /**
      * Returns true if a feature is visible and rendered someplace in the blocks of this track.
@@ -679,8 +723,8 @@ HTMLFeatures = declare( HTMLFeatures,
         if (Util.is_ie6) heightTest.appendChild(document.createComment("foo"));
         document.body.appendChild(heightTest);
         glyphBox = domGeom.getMarginBox(heightTest);
-        this.glyphHeight = glyphBox.h;
-        this.padding += glyphBox.w;
+        this.glyphHeight = Math.round(glyphBox.h);
+        this.padding = this.defaultPadding + glyphBox.w;
         document.body.removeChild(heightTest);
 
         //determine the width of the arrowhead, if any
@@ -700,7 +744,28 @@ HTMLFeatures = declare( HTMLFeatures,
         }
     },
 
-    renderFeature: function( feature, uniqueId, block, scale, labelScale, descriptionScale, containerStart, containerEnd, destBlock ) {
+    getFeatDiv: function( feature )  {
+        var id = this.getId( feature );
+        if( ! id )
+            return null;
+
+        for( var i = 0; i < this.blocks.length; i++ ) {
+            var b = this.blocks[i];
+            if( b ) {
+                var f = this.blocks[i].featureNodes[id];
+                if( f )
+                    return f;
+            }
+        }
+
+        return null;
+    },
+
+    getId: function( f ) {
+        return f.id();
+    },
+
+    renderFeature: function( feature, uniqueId, block, scale, labelScale, descriptionScale, containerStart, containerEnd ) {
         //featureStart and featureEnd indicate how far left or right
         //the feature extends in bp space, including labels
         //and arrowheads if applicable
@@ -712,7 +777,7 @@ HTMLFeatures = declare( HTMLFeatures,
         if( typeof featureStart == 'string' )
             featureStart = parseInt(featureStart);
 
-        var levelHeight = this.glyphHeight;
+        var levelHeight = this.glyphHeight + this.glyphHeightPad;
 
         // if the label extends beyond the feature, use the
         // label end position as the end position for layout
@@ -726,26 +791,27 @@ HTMLFeatures = declare( HTMLFeatures,
         if( this.showLabels && scale >= labelScale ) {
             if (name) {
 	        featureEnd = Math.max(featureEnd, featureStart + (''+name).length * this.labelWidth / scale );
-                levelHeight += this.labelHeight + 1;
+                levelHeight += this.labelHeight + this.labelPad;
             }
             if( description ) {
                 featureEnd = Math.max( featureEnd, featureStart + (''+description).length * this.labelWidth / scale );
-                levelHeight += this.labelHeight + 1;
+                levelHeight += this.labelHeight + this.labelPad;
             }
         }
         featureEnd += Math.max(1, this.padding / scale);
 
-        var top = this._getLayout( scale ).addRect( uniqueId,
-                                       featureStart,
-                                       featureEnd,
-                                       levelHeight);
+        var top = this._getLayout( scale )
+                      .addRect( uniqueId,
+                                featureStart,
+                                featureEnd,
+                                levelHeight);
 
         var featDiv = this.config.hooks.create(this, feature );
         this._connectFeatDivHandlers( featDiv );
         featDiv.track = this;
         featDiv.feature = feature;
         featDiv.layoutEnd = featureEnd;
-        featDiv.className = (featDiv.className ? featDiv.className + " " : "") + "feature";
+
         // (callbackArgs are the args that will be passed to callbacks
         // in this feature's context menu or left-click handlers)
         featDiv.callbackArgs = [ this, featDiv.feature, featDiv ];
@@ -768,21 +834,27 @@ HTMLFeatures = declare( HTMLFeatures,
             block.rightOverlaps.push( uniqueId );
         }
 
+	dojo.addClass(featDiv, "feature");
+	var className = this.config.style.className;
+	if (className == "{type}") { className = feature.get('type'); }
+	dojo.addClass(featDiv, className);
         var strand = feature.get('strand');
         switch (strand) {
         case 1:
         case '+':
-            featDiv.className = featDiv.className + " " + this.config.style.className + " plus-" + this.config.style.className; break;
+	    dojo.addClass(featDiv, "plus-" + className); break;
+            // featDiv.className = featDiv.className + " " + this.config.style.className + " plus-" + this.config.style.className; break;
         case -1:
         case '-':
-            featDiv.className = featDiv.className + " " + this.config.style.className + " minus-" + this.config.style.className; break;
-        default:
-            featDiv.className = featDiv.className + " " + this.config.style.className; break;
+	    dojo.addClass(featDiv, "minus-" + className); break;
+            // featDiv.className = featDiv.className + " " + this.config.style.className + " minus-" + this.config.style.className; break;
+//        default:
+            // featDiv.className = featDiv.className + " " + this.config.style.className; break;
         }
-
         var phase = feature.get('phase');
         if ((phase !== null) && (phase !== undefined))
-            featDiv.className = featDiv.className + " " + featDiv.className + "_phase" + phase;
+//            featDiv.className = featDiv.className + " " + featDiv.className + "_phase" + phase;
+            dojo.addClass(featDiv, className + "_phase" + phase);
 
         // Since some browsers don't deal well with the situation where
         // the feature goes way, way offscreen, we truncate the feature
@@ -851,50 +923,33 @@ HTMLFeatures = declare( HTMLFeatures,
             labelDiv.callbackArgs = [ this, featDiv.feature, featDiv ];
         }
 
-        if( destBlock ) {
-            destBlock.appendChild(featDiv);
+        if( featwidth > this.config.style.minSubfeatureWidth ) {
+	    this.handleSubFeatures(feature, featDiv, displayStart, displayEnd, block);
         }
 
-        // defer subfeature rendering and modification hooks into a
-        // timeout so that navigation feels faster.
-        window.setTimeout( dojo.hitch( this,
-             function() {
+        // render the popup menu if configured
+        if( this.config.menuTemplate ) {
+            window.setTimeout( dojo.hitch( this, '_connectMenus', featDiv ), 50+Math.random()*150 );
+        }
 
-                 if( featwidth > this.config.style.minSubfeatureWidth ) {
-                     var subfeatures = feature.get('subfeatures');
-                     if( subfeatures ) {
-                         for (var i = 0; i < subfeatures.length; i++) {
-                             this.renderSubfeature(feature, featDiv,
-                                                   subfeatures[i],
-                                                   displayStart, displayEnd);
-                         }
-                     }
-                 }
-
-                 //ie6 doesn't respect the height style if the div is empty
-                 if (Util.is_ie6) featDiv.appendChild(document.createComment());
-                 //TODO: handle event-handler-related IE leaks
-
-                 /* Temi / AP adding right menu click
-                  AP new schema menuTemplate: an array where everything except
-                  children, popup and url are passed on as properties to a new
-                  dijit.Menu object
-                  */
-
-                 // render the popup menu if configured
-                 if( this.config.menuTemplate ) {
-                     this._connectMenus( featDiv );
-                 }
-                 if( destBlock )
-                     this._centerFeatureElements(featDiv);
-
-                 if ( typeof this.config.hooks.modify == 'function' ) {
-                     this.config.hooks.modify(this, feature, featDiv);
-                 }
-
-        }),50+Math.random()*50);
+        if ( typeof this.config.hooks.modify == 'function' ) {
+            this.config.hooks.modify(this, feature, featDiv);
+        }
 
         return featDiv;
+    },
+
+
+    handleSubFeatures: function( feature, featDiv,
+                                 displayStart, displayEnd, block )  {
+	var subfeatures = feature.get('subfeatures');
+        if( subfeatures ) {
+            for (var i = 0; i < subfeatures.length; i++) {
+                this.renderSubfeature( feature, featDiv,
+                                      subfeatures[i],
+                                      displayStart, displayEnd, block );
+            }
+        }
     },
 
     /**
@@ -942,7 +997,6 @@ HTMLFeatures = declare( HTMLFeatures,
         on( featDiv,  'mouseover', refreshMenu );
         if( featDiv.labelDiv )
             on( featDiv.labelDiv,  'mouseover', refreshMenu );
-        dojo.connect( featDiv.contextMenu, 'onMouseMove', refreshMenu );
     },
 
     _refreshMenu: function( featDiv ) {
@@ -987,27 +1041,44 @@ HTMLFeatures = declare( HTMLFeatures,
         return menu;
     },
 
-    renderSubfeature: function(feature, featDiv, subfeature, displayStart, displayEnd) {
+    renderSubfeature: function( feature, featDiv, subfeature, displayStart, displayEnd, block ) {
         var subStart = subfeature.get('start');
         var subEnd = subfeature.get('end');
         var featLength = displayEnd - displayStart;
-
-        var subDiv = document.createElement("div");
-
         var type = subfeature.get('type');
-        subDiv.className = (this.config.style.subfeatureClasses||{})[type] || this.config.style.className + '-' + type;
+	var className;
+	if (this.config.style.subfeatureClasses) {
+	    className = this.config.style.subfeatureClasses[type];
+	    // if no class mapping specified for type, default to "{parentclass}-{type}"
+	    if (className === undefined) { className = this.config.style.className + '-' + type; }
+	    // if subfeatureClasses specifies that subfeature type explicitly maps to null className 
+	    //     then don't render the feature        
+	    else if (className === null)  { 
+		className = this.config.style.className + '-' + type; 
+		return ; 
+	    }
+	}
+	else {
+	    // if no config.style.subfeatureClasses to specify subfeature class mapping, default to "{parentclass}-{type}"
+	    className = this.config.style.className + '-' + type; 
+	}
+        var subDiv = document.createElement("div");
+	dojo.addClass(subDiv, "subfeature");
+        dojo.addClass(subDiv, className);
+
         switch ( subfeature.get('strand') ) {
         case 1:
         case '+':
-            subDiv.className += " plus-" + subDiv.className; break;
+	    dojo.addClass(subDiv, "plus-" + className); break;
         case -1:
         case '-':
-            subDiv.className += " minus-" + subDiv.className; break;
+            dojo.addClass(subDiv, "minus-" + className); break;
         }
 
         // if the feature has been truncated to where it doesn't cover
         // this subfeature anymore, just skip this subfeature
-        if ((subEnd <= displayStart) || (subStart >= displayEnd)) return;
+        if ( subEnd <= displayStart || subStart >= displayEnd )
+            return null;
 
         if (Util.is_ie6) subDiv.appendChild(document.createComment());
 
@@ -1019,12 +1090,23 @@ HTMLFeatures = declare( HTMLFeatures,
             + "top: 0px;"
             + "width: " + (100 * ((subEnd - subStart) / featLength)) + "%;";
         featDiv.appendChild(subDiv);
+
+        block.featureNodes[ subfeature.id() ] = subDiv;
+
+	return subDiv;
     },
 
     _getLayout: function( scale ) {
+
+        //determine the glyph height, arrowhead width, label text dimensions, etc.
+        if (!this.haveMeasurements) {
+            this.measureStyles();
+            this.haveMeasurements = true;
+        }
+
         // create the layout if we need to, and we can
-        if( ( ! this.layout || this.layout.pitchX != 4/scale ) && scale )
-            this.layout = new Layout({pitchX: 4/scale, pitchY: this.layoutPitchY || this.config.layoutPitchY });
+        if( ( ! this.layout || this.layout.pitchX != 4/scale ) && scale  )
+            this.layout = new Layout({pitchX: 4/scale, pitchY: this.config.layoutPitchY || (this.glyphHeight + this.glyphHeightPad) });
 
         return this.layout;
     },

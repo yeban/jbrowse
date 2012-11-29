@@ -2,13 +2,14 @@ define( [
             'dojo/_base/array',
             'dojo/aspect',
             'dojo/has',
+            'dojo/window',
             'JBrowse/Util',
             'JBrowse/View/Cloud/gdriveUpload',
             'dijit/form/Button',
             'dijit/form/RadioButton',
             'dijit/Dialog'
         ],
-        function( array, aspect, has, Util, gdriveUpload, dijitButton, dijitRadioButton, dijitDialog ) {
+        function( array, aspect, has, dojoWindow, Util, gdriveUpload, dijitButton, dijitRadioButton, dijitDialog ) {
 /**
  * Mixin for a track that can export its data.
  * @lends JBrowse.View.Track.ExportMixin
@@ -128,7 +129,7 @@ return {
                             this.exportRegion( region, format, function(output) {
                                 dialog.hide();
                                 var text = dojo.create('textarea', {
-                                                           rows: 30,
+                                                           rows: Math.round( dojoWindow.getBox().h / 12 * 0.5 ),
                                                            wrap: 'soft',
                                                            cols: 80,
                                                            readonly: true

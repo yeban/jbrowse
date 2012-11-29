@@ -104,12 +104,6 @@ div.vertical_scrollbar .vertical_position_marker {
     position: relative;
 }
 
-.powered_by {
-    padding: 0 0.5em;
-    color: black;
-    text-decoration: none;
-}
-
 .moreMatches {
     font-style: italic;
     color: #ccc;
@@ -137,6 +131,7 @@ div.locationThumb {
     /* if you change this border from 2px, change GenomeView.showTrap */
     border: 2px solid red;
     margin: 0px -2px 0px -2px;
+    height: 23px;
     cursor: move;
     background: rgba(0, 121, 245, 0.1);
 }
@@ -161,10 +156,17 @@ a.topLink {
     color: blue;
 }
 
+#location {
+    font-family: sans-serif;
+}
+
 div.overview {
+    position: relative;
     width: 100%;
-    padding: 4px 0;
+    padding: 4px 0 0 0;
     z-index: -5;
+    display: block;
+    height: 23px;
 
     background: #FAFAFA url(src/dijit/themes/tundra/images/titleBar.png) repeat-x top left;
 
@@ -238,6 +240,7 @@ div.pos-label {
     top: 0px;
     z-index: 100;
     margin: 1px;
+    font-family: sans-serif;
 }
 
 div.overview-pos {
@@ -276,12 +279,21 @@ div.sequence .base, div.sequence > div  {
     height: 14px;
     line-height: 14px;
 }
+div.sequence .base.big {
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-right-color: #333;
+    border-bottom-color: #333;
+    height: 16px;
+}
+
 div.sequence > div {
     border-top: 1px solid #4d4d4d;
     border-bottom: 1px solid black;
 }
 div.sequence > div:first-child {
-    border-bottom-width: 0px;
+    border-bottom-color: #4d4d4d;
 }
 
 span.base {
@@ -529,8 +541,8 @@ a.feature-label {
 }
 div.overview .rubber-highlight {
     font-size: 0;
-    top: -4px;
-    height: 23px;
+    height: 100%;
+    margin-top: -4px; /* corresponds to padding on div.overview */
     border-top: none;
     border-bottom: none;
 }
@@ -628,6 +640,7 @@ a.dialog-new-window {
 .feature-detail {
     padding-top: 1em;
     width: 50em;
+    color: #333;
 }
 .feature-detail .subfeature-detail {
     background: #fafafa;
@@ -639,17 +652,28 @@ a.dialog-new-window {
     padding: 1em 1.5em;
     border: 1px solid #aaa;
 }
+.feature-detail div.core {
+    font-size: 110%;
+}
+.feature-detail div.additional {
+}
+.feature-detail div.additional > h2 {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin: 0.2em 0 0.7em 0;
+    padding: 0.5em 0.5em 0.3em 0em;
+}
 
 .detail .value {
     margin-left: 1em;
     display: inline-block;
     vertical-align: top;
+    font-family: sans-serif;
 }
 .detail .field {
     margin-top: 0;
     margin-bottom: 0.3em;
     display: inline-block;
-    min-width: 9em;
+    min-width: 8em;
     vertical-align: top;
 }
 
@@ -683,7 +707,7 @@ a.dialog-new-window {
     display: none;
     background: #fefefe;
     padding: 0 0.7em;
-    z-index: 10;
+    z-index: 1000;
     text-align: center;
     cursor: crosshair;
     border: 1px solid #888;

@@ -2,6 +2,9 @@ var _gaq = _gaq || []; // global task queue for Google Analytics
 
 define( [
             'dojo/_base/lang',
+            'dojo/on',
+            'dojo/_base/Deferred',
+            'dojo/DeferredList',
             'dojo/topic',
             'dojo/aspect',
             'dojo/_base/array',
@@ -11,6 +14,9 @@ define( [
             'dijit/form/ComboBox',
             'dijit/form/Button',
             'dijit/form/Select',
+            'dijit/form/DropDownButton',
+            'dijit/DropDownMenu',
+            'dijit/MenuItem',
             'JBrowse/Util',
             'JBrowse/Store/LazyTrie',
             'JBrowse/Store/Autocomplete',
@@ -22,6 +28,9 @@ define( [
         ],
         function(
             lang,
+            on,
+            Deferred,
+            DeferredList,
             topic,
             aspect,
             array,
@@ -31,6 +40,9 @@ define( [
             dijitComboBox,
             dijitButton,
             dijitSelectBox,
+            dijitDropDownButton,
+            dijitDropDownMenu,
+            dijitMenuItem,
             Util,
             LazyTrie,
             AutocompleteStore,
@@ -83,14 +95,22 @@ var Browser = function(params) {
 
     // schedule the config load, the first step in the initialization
     // process, to happen when the page is done loading
-    dojo.addOnLoad( dojo.hitch( this,'loadConfig' ) );
 
-    dojo.connect( this, 'onConfigLoaded',  Util.debugHandler( this, 'loadUserCSS' ));
-    dojo.connect( this, 'onConfigLoaded',  Util.debugHandler( this, 'loadRefSeqs' ));
-    dojo.connect( this, 'onConfigLoaded',  Util.debugHandler( this, 'loadNames'   ));
-    dojo.connect( this, 'onRefSeqsLoaded', Util.debugHandler( this, 'initView'    ));
-    dojo.connect( this, 'onRefSeqsLoaded', Util.debugHandler( this, 'reportUsageStats' ));
-    dojo.connect( this, 'onRefSeqsLoaded', Util.debugHandler( this, 'initPlugins' ));
+    this._deferred = {};
+    var thisB = this;
+    dojo.addOnLoad( function() {
+        thisB.loadConfig().then( function() {
+            thisB.loadNames();
+            thisB.loadUserCSS().then( function() {
+                thisB.initPlugins().then( function() {
+                    thisB.loadRefSeqs().then( function() {
+                       thisB.initView();
+                       thisB.reportUsageStats();
+                    });
+                });
+            });
+        });
+    });
 };
 
 Browser.prototype.version = function() {
@@ -98,34 +118,92 @@ Browser.prototype.version = function() {
     return BUILD_SYSTEM_JBROWSE_VERSION || 'development';
 }.call();
 
+
+/**
+ * Get a plugin, if it is present.  Note that, if plugin
+ * initialization is not yet complete, it may be a while before the
+ * callback is called.
+ *
+ * Callback is called with one parameter, the desired plugin object,
+ * or undefined if it does not exist.
+ */
+Browser.prototype.getPlugin = function( name, callback ) {
+    this.initPlugins().then(dojo.hitch( this, function() {
+        callback( this.plugins[name] );
+    }));
+};
+
 /**
  * Load and instantiate any plugins defined in the configuration.
  */
 Browser.prototype.initPlugins = function() {
-    var plugins = this.config.plugins || [];
+    return this._deferredFunction( 'plugin initalization', function( deferred ) {
+        this.plugins = {};
+        var plugins = this.config.plugins || [];
 
-    // coerce plugins to array of objects
-    plugins = array.map( dojo.isArray(plugins) ? plugins : [plugins], function( p ) {
-        return typeof p == 'object' ? p : { 'class_': p };
+        if( ! plugins ) {
+            deferred.resolve({success: true});
+            return;
+        }
+
+        // coerce plugins to array of objects
+        plugins = array.map( dojo.isArray(plugins) ? plugins : [plugins], function( p ) {
+            return typeof p == 'object' ? p : { 'name': p };
+        });
+
+        var pluginNames = array.map( plugins, function( p ) {
+            return p.name;
+        });
+
+        var pluginDeferreds = array.map( plugins, function(p) {
+            return new Deferred();
+        });
+
+        // fire the "all plugins done" deferred when all of the plugins are done loading
+        (new DeferredList( pluginDeferreds ))
+            .then( function() { deferred.resolve({success: true}); });
+
+        require( {
+                     packages: array.map( pluginNames, function(c) { return { name: c, location: "../plugins/"+c+"/js" }; })
+                 },
+                 pluginNames,
+                 dojo.hitch( this, function() {
+                     array.forEach( arguments, function( pluginClass, i ) {
+                             var pluginName = pluginNames[i];
+                             var thisPluginDone = pluginDeferreds[i];
+                             if( typeof pluginClass == 'string' ) {
+                                 console.error("could not load plugin "+pluginName+": "+pluginClass);
+                             } else {
+                                 // make the plugin's arguments out of
+                                 // its little obj in 'plugins', and
+                                 // also anything in the top-level
+                                 // conf under its plugin name
+                                 var args = dojo.mixin(
+                                     dojo.clone( plugins[i] ),
+                                     this.config[pluginName]||{});
+                                 args.browser = this;
+                                 args = dojo.mixin( args, { browser: this } );
+
+                                 // load its css
+                                 this._loadCSS(
+                                     {url: 'plugins/'+pluginName+'/css/main.css'},
+                                     function() {
+                                         thisPluginDone.resolve({success:true});
+                                     },
+                                     function() {
+                                         // succeed loading even if the css load failed.  not all plugins necessarily have css
+                                         thisPluginDone.resolve({success:true});
+                                     }
+                                 );
+
+                                 // instantiate the plugin
+                                 var plugin = new pluginClass( args );
+                                 this.plugins[ pluginName ] = plugin;
+                             }
+                         }, this );
+                  }));
     });
 
-    var pluginClasses = array.map( plugins, function( p ) {
-        return p.class_;
-    });
-
-    this.plugins = [];
-
-    require( pluginClasses, dojo.hitch( this, function() {
-        array.forEach( arguments, function( pluginClass, i ) {
-            this.plugins.push(
-                new pluginClass(
-                    dojo.mixin( dojo.clone( plugins[i] ), { browser: this } )
-                )
-            );
-        }, this );
-
-        console.log( this.plugins );
-    }));
 };
 
 /**
@@ -169,21 +247,24 @@ Browser.prototype.fatalError = function( error ) {
 };
 
 Browser.prototype.loadRefSeqs = function() {
-    // load our ref seqs
-    if( typeof this.config.refSeqs == 'string' )
-        this.config.refSeqs = { url: this.config.refSeqs };
-    dojo.xhrGet(
-        {
-            url: this.config.refSeqs.url,
-            handleAs: 'json',
-            load: dojo.hitch( this, function(o) {
-                this.addRefseqs(o);
-                this.onRefSeqsLoaded();
-            }),
-            error: dojo.hitch( this, function(e) {
-                this.fatalError('Failed to load reference sequence info: '+e);
-            })
-        });
+    return this._deferredFunction( 'refseq loading', function( deferred ) {
+        // load our ref seqs
+        if( typeof this.config.refSeqs == 'string' )
+            this.config.refSeqs = { url: this.config.refSeqs };
+        dojo.xhrGet(
+            {
+                url: this.config.refSeqs.url,
+                handleAs: 'json',
+                load: dojo.hitch( this, function(o) {
+                    this.addRefseqs( o );
+                    deferred.resolve({success:true});
+                }),
+                error: dojo.hitch( this, function(e) {
+                    this.fatalError('Failed to load reference sequence info: '+e);
+                    deferred.resolve({ success: false, error: e });
+                })
+            });
+    });
 };
 
 /**
@@ -192,24 +273,53 @@ Browser.prototype.loadRefSeqs = function() {
 Browser.prototype.onRefSeqsLoaded = function() {};
 
 Browser.prototype.loadUserCSS = function() {
-    if( this.config.css && ! dojo.isArray( this.config.css ) )
-        this.config.css = [ this.config.css ];
-    dojo.forEach( this.config.css || [], function(css) {
+    return this._deferredFunction( 'load user css', function( deferred ) {
+        if( this.config.css && ! dojo.isArray( this.config.css ) )
+            this.config.css = [ this.config.css ];
+
+        var css = this.config.css || [];
+        if( ! css.length ) {
+            deferred.resolve({success:true});
+            return;
+        }
+
+        var that = this;
+        var cssDeferreds = array.map( css, function( css ) {
+            var d = new Deferred();
+            that._loadCSS(
+                css,
+                function() { d.resolve({success:true}); },
+                function() { d.resolve({success:false}); }
+            );
+            return d;
+        });
+
+        new DeferredList(cssDeferreds)
+            .then( function() { deferred.resolve({success:true}); } );
+   });
+};
+
+Browser.prototype._loadCSS = function( css, successCallback, errorCallback ) {
         if( typeof css == 'string' ) {
             dojo.create('style', { type: 'text/css', innerHTML: css }, this.container );
+            successCallback && successCallback();
         } else if( typeof css == 'object' ) {
-            dojo.create('link', { rel: 'stylesheet', href: css.url, type: 'text/css'}, document.head );
+            var link = dojo.create('link', { rel: 'stylesheet', href: css.url, type: 'text/css'}, document.head );
+            successCallback && on( link, 'load', successCallback );
+            errorCallback   && on( link, 'error', errorCallback );
         }
-    },this);
 };
 
 /**
  * Load our name index.
  */
 Browser.prototype.loadNames = function() {
-    // load our name index
-    if (this.config.nameUrl)
-        this.names = new LazyTrie(this.config.nameUrl, "lazy-{Chunk}.json");
+    return this._deferredFunction( 'name store loading', function( deferred ) {
+        // load our name index
+        if (this.config.nameUrl)
+            this.names = new LazyTrie(this.config.nameUrl, "lazy-{Chunk}.json");
+        deferred.resolve({success: true});
+     });
 };
 
 Browser.prototype.initView = function() {
@@ -218,7 +328,18 @@ Browser.prototype.initView = function() {
 
     var topPane = dojo.create( 'div',{ style: {overflow: 'hidden'}}, this.container );
 
+    // make our top menu bar
+    var menuBar = dojo.create(
+        'div',
+        {
+            className: this.config.show_nav ? 'menuBar' : 'topLink'
+        }
+        );
+
+    ( this.config.show_nav ? topPane : this.container ).appendChild( menuBar );
+
     var overview = dojo.create( 'div', { className: 'overview', id: 'overview' }, topPane );
+    this.overviewDiv = overview;
     // overview=0 hides the overview, but we still need it to exist
     if( ! this.config.show_overview )
         overview.style.cssText = "display: none";
@@ -227,25 +348,54 @@ Browser.prototype.initView = function() {
         this.navbox = this.createNavBox( topPane );
 
     // make our little top-links box with links to help, etc.
-    var linkContainer = dojo.create('div', { className: 'topLink' });
     dojo.create('a', {
         className: 'powered_by',
         innerHTML: 'JBrowse',
         href: 'http://jbrowse.org',
         title: 'powered by JBrowse'
-     }, linkContainer );
+     }, menuBar );
 
-    if( this.config.show_nav && this.config.show_tracklist && this.config.show_overview ){
-        linkContainer.appendChild( this.makeShareLink() );
-        linkContainer.appendChild( this.makeGoogleLink() );
+    if( this.config.show_nav ) {
+
+        // this.addGlobalMenuItem( 'file',
+        //                         new dijitMenuItem(
+        //                             {
+        //                                 label: 'Open',
+        //                                 onClick: function() { alert('open sesame!'); }
+        //                             })
+        //                       );
+        // var fileMenu = this.makeGlobalMenu('file');
+        // if( fileMenu ) {
+        //     var fileButton = new dijitDropDownButton(
+        //         { className: 'file',
+        //           innerHTML: 'File',
+        //           //title: '',
+        //           dropDown: fileMenu
+        //         });
+        //     dojo.addClass( fileButton.domNode, 'menu' );
+        //     menuBar.appendChild( fileButton.domNode );
+        // }
+
+        var configMenu = this.makeGlobalMenu('options');
+        if( configMenu ) {
+            var configLink = new dijitDropDownButton(
+                { className: 'config',
+                  innerHTML: '<span class="icon"></span> Options',
+                  title: 'configure JBrowse',
+                  dropDown: configMenu
+                });
+            menuBar.appendChild( configLink.domNode );
+       }
+    }
+
+    if( this.config.show_nav && this.config.show_tracklist && this.config.show_overview ) {
+        menuBar.appendChild( this.makeShareLink() );
+        menuBar.appendChild( this.makeAuthLink() );
     } else
-        linkContainer.appendChild( this.makeFullViewLink() );
+        menuBar.appendChild( this.makeFullViewLink() );
 
     if( this.config.show_nav )
-        linkContainer.appendChild( this.makeHelpDialog()   );
-
-    ( this.config.show_nav ? this.navbox : this.container ).appendChild( linkContainer );
-
+        menuBar.appendChild( this.makeHelpDialog()   );
 
     this.viewElem = document.createElement("div");
     this.viewElem.className = "dragWindow";
@@ -267,8 +417,8 @@ Browser.prototype.initView = function() {
 
     // hook up GenomeView
     this.view = this.viewElem.view =
-        new GenomeView(this, this.viewElem, 250, this.refSeq, 1/200,
-                       this.config.browserRoot);
+        new GenomeView(this, this.viewElem, 250, this.refSeq, 1/200 );
+
     dojo.connect( this.view, "onFineMove",   this, "onFineMove"   );
     dojo.connect( this.view, "onCoarseMove", this, "onCoarseMove" );
 
@@ -277,50 +427,72 @@ Browser.prototype.initView = function() {
     dojo.connect( this.browserWidget, "resize", this,      'onResize' );
     dojo.connect( this.browserWidget, "resize", this.view, 'onResize' );
 
-    // (this stuff below is just a callback pyramid to make it synchronous)
-    // init the track metadata
-    this.initTrackMetadata( dojo.hitch(this, function() {
-        //set up the track list
-        this.createTrackList( dojo.hitch( this, function(){
-            this.containerWidget.startup();
-            this.onResize();
-            this.view.onResize();
+    //set initial location
+    this.loadRefSeqs().then( dojo.hitch( this, function() {
+        this.initTrackMetadata().then( dojo.hitch( this, function() {
+            this.createTrackList().then( dojo.hitch( this, function() {
+                    this.containerWidget.startup();
+                    this.onResize();
+                    this.view.onResize();
 
-            //set initial location
-            var oldLocMap = dojo.fromJson( this.cookie('location') ) || {};
-            if (this.config.location) {
-                this.navigateTo(this.config.location);
-            } else if (oldLocMap[this.refSeq.name]) {
-                this.navigateTo( oldLocMap[this.refSeq.name].l || oldLocMap[this.refSeq.name] );
-            } else if (this.config.defaultLocation){
-                this.navigateTo(this.config.defaultLocation);
-            } else {
-                this.navigateTo( Util.assembleLocString({
-                                     ref:   this.refSeq.name,
-                                     start: 0.4 * ( this.refSeq.start + this.refSeq.end ),
-                                     end:   0.6 * ( this.refSeq.start + this.refSeq.end )
-                                 })
-                               );
-            }
+                    var oldLocMap = dojo.fromJson( this.cookie('location') ) || {};
+                    if (this.config.location) {
+                        this.navigateTo(this.config.location);
+                    } else if (oldLocMap[this.refSeq.name]) {
+                        this.navigateTo( oldLocMap[this.refSeq.name].l || oldLocMap[this.refSeq.name] );
+                    } else if (this.config.defaultLocation){
+                        this.navigateTo(this.config.defaultLocation);
+                    } else {
+                        this.navigateTo( Util.assembleLocString({
+                                             ref:   this.refSeq.name,
+                                             start: 0.4 * ( this.refSeq.start + this.refSeq.end ),
+                                             end:   0.6 * ( this.refSeq.start + this.refSeq.end )
+                                         })
+                                       );
+                    }
 
-            // make our global keyboard shortcut handler
-            dojo.connect( document.body, 'onkeypress', this, 'globalKeyHandler' );
+                // make our global keyboard shortcut handler
+                dojo.connect( document.body, 'onkeypress', this, 'globalKeyHandler' );
 
-            // configure our event routing
-            this._initEventRouting();
+                // configure our event routing
+                this._initEventRouting();
 
-            this.isInitialized = true;
+                this.isInitialized = true;
 
-            //if someone calls methods on this browser object
-            //before it's fully initialized, then we defer
-            //those functions until now
-            dojo.forEach( this.deferredFunctions, function(f) {
-                f.call(this);
-            },this );
+                //if someone calls methods on this browser object
+                //before it's fully initialized, then we defer
+                //those functions until now
+                dojo.forEach( this.deferredFunctions, function(f) {
+                                  f.call(this);
+                              },this );
 
-            this.deferredFunctions = [];
+                this.deferredFunctions = [];
+           }));
         }));
     }));
+};
+
+
+Browser.prototype.makeGlobalMenu = function( menuName ) {
+    var items = ( this._globalMenuItems || {} )[menuName] || [];
+    if( ! items.length )
+        return null;
+
+    var menu = new dijitDropDownMenu({ leftClickToOpen: true });
+    dojo.forEach( items, function( item ) {
+        menu.addChild( item );
+    });
+    dojo.addClass( menu.domNode, 'globalMenu' );
+    menu.startup();
+    return menu;
+};
+
+Browser.prototype.addGlobalMenuItem = function( menuName, item ) {
+    if( ! this._globalMenuItems )
+        this._globalMenuItems = {};
+    if( ! this._globalMenuItems[ menuName ] )
+        this._globalMenuItems[ menuName ] = [];
+    this._globalMenuItems[ menuName ].push( item );
 };
 
 /**
@@ -477,6 +649,7 @@ Browser.prototype._calculateClientStats = function() {
                 '+'
             ),
         'tracks-count': this.config.tracks.length,
+        'plugins': dojof.keys( this.plugins ).sort().join(','),
 
         // screen geometry
         'scn-h': scn ? scn.height : null,
@@ -556,6 +729,27 @@ Browser.prototype.addRecentlyUsedTracks = function( trackLabels ) {
     return newRecent;
 };
 
+Browser.prototype._deferredFunction = function(  name, func ) {
+
+    var args = Array.prototype.slice.call( arguments, 2 );
+    var thisB = this;
+
+    this._deferred[name] = this._deferred[name] || (function() {
+        var d = new Deferred();
+        args.unshift( d );
+        try {
+            func.apply( thisB, args ) ;
+        } catch(e) {
+            console.error(''+e, e.stack);
+            d.resolve({ success:false, error: e });
+        }
+
+        return d;
+    }());
+
+    return this._deferred[name];
+};
+
 /**
  *  Load our configuration file(s) based on the parameters thex
  *  constructor was passed.  Does not return until all files are
@@ -563,8 +757,9 @@ Browser.prototype.addRecentlyUsedTracks = function( trackLabels ) {
  *  @returns nothing meaningful
  */
 Browser.prototype.loadConfig = function () {
-    var c = new ConfigManager({ config: this.config, defaults: this._configDefaults(), browser: this });
-    c.getFinalConfig( dojo.hitch(this, function( finishedConfig ) {
+    return this._deferredFunction( 'configuration loading', function( deferred ) {
+        var c = new ConfigManager({ config: this.config, defaults: this._configDefaults(), browser: this });
+        c.getFinalConfig( dojo.hitch(this, function( finishedConfig ) {
                 this.config = finishedConfig;
 
                 // index the track configurations by name
@@ -573,8 +768,18 @@ Browser.prototype.loadConfig = function () {
                                   this.trackConfigsByName[conf.label] = conf;
                               },this);
 
-                this.onConfigLoaded();
-     }));
+                // coerce some config keys to boolean
+                dojo.forEach( ['show_tracklist','show_nav','show_overview'], function(v) {
+                                  this.config[v] = this._coerceBoolean( this.config[v] );
+                              },this);
+
+               // set empty tracks array if we have none
+               if( ! this.config.tracks )
+                   this.config.tracks = [];
+
+                deferred.resolve({success:true});
+        }));
+    });
 };
 
 Browser.prototype._configDefaults = function() {
@@ -584,20 +789,6 @@ Browser.prototype._configDefaults = function() {
         show_nav: true,
         show_overview: true
     };
-};
-
-/**
- * Hook run after the configuration is all loaded.
- */
-Browser.prototype.onConfigLoaded = function() {
-    // coerce some config keys to boolean
-    dojo.forEach( ['show_tracklist','show_nav','show_overview'], function(v) {
-        this.config[v] = this._coerceBoolean( this.config[v] );
-    },this);
-
-    // set empty tracks array if we have none
-    if( ! this.config.tracks )
-        this.config.tracks = [];
 };
 
 /**
@@ -706,96 +897,98 @@ Browser.prototype.onFineMove = function(startbp, endbp) {
  * Asynchronously initialize our track metadata.
  */
 Browser.prototype.initTrackMetadata = function( callback ) {
-    var metaDataSourceClasses = dojo.map(
-                                (this.config.trackMetadata||{}).sources || [],
-                                function( sourceDef ) {
-                                    var url  = sourceDef.url || 'trackMeta.csv';
-                                    var type = sourceDef.type || (
-                                            /\.csv$/i.test(url)     ? 'csv'  :
-                                            /\.js(on)?$/i.test(url) ? 'json' :
-                                            'csv'
-                                    );
-                                    var storeClass = sourceDef['class']
-                                        || { csv: 'dojox/data/CsvStore', json: 'dojox/data/JsonRestStore' }[type];
-                                    if( !storeClass ) {
-                                        console.error( "No store class found for type '"
-                                                       +type+"', cannot load track metadata from URL "+url);
-                                        return null;
-                                    }
-                                    return { class_: storeClass, url: url };
-                                });
+    return this._deferredFunction( 'track metadata initialization', function( deferred ) {
+        var metaDataSourceClasses = dojo.map(
+                                    (this.config.trackMetadata||{}).sources || [],
+                                    function( sourceDef ) {
+                                        var url  = sourceDef.url || 'trackMeta.csv';
+                                        var type = sourceDef.type || (
+                                                /\.csv$/i.test(url)     ? 'csv'  :
+                                                /\.js(on)?$/i.test(url) ? 'json' :
+                                                'csv'
+                                        );
+                                        var storeClass = sourceDef['class']
+                                            || { csv: 'dojox/data/CsvStore', json: 'dojox/data/JsonRestStore' }[type];
+                                        if( !storeClass ) {
+                                            console.error( "No store class found for type '"
+                                                           +type+"', cannot load track metadata from URL "+url);
+                                            return null;
+                                        }
+                                        return { class_: storeClass, url: url };
+                                    });
 
 
-    require( Array.prototype.concat.apply( ['JBrowse/Store/TrackMetaData'],
-                                           dojo.map( metaDataSourceClasses, function(c) { return c.class_; } ) ),
-             dojo.hitch(this,function( MetaDataStore ) {
-                 var mdStores = [];
-                 for( var i = 1; i<arguments.length; i++ ) {
-                     mdStores.push( new (arguments[i])({url: metaDataSourceClasses[i-1].url}) );
-                 }
+        require( Array.prototype.concat.apply( ['JBrowse/Store/TrackMetaData'],
+                                               dojo.map( metaDataSourceClasses, function(c) { return c.class_; } ) ),
+                 dojo.hitch(this,function( MetaDataStore ) {
+                     var mdStores = [];
+                     for( var i = 1; i<arguments.length; i++ ) {
+                         mdStores.push( new (arguments[i])({url: metaDataSourceClasses[i-1].url}) );
+                     }
 
-                 this.trackMetaDataStore =  new MetaDataStore(
-                     dojo.mixin( dojo.clone(this.config.trackMetadata || {}), {
-                                     trackConfigs: this.config.tracks,
-                                     browser: this,
-                                     metadataStores: mdStores
-                                 })
-                 );
+                     this.trackMetaDataStore =  new MetaDataStore(
+                         dojo.mixin( dojo.clone(this.config.trackMetadata || {}), {
+                                         trackConfigs: this.config.tracks,
+                                         browser: this,
+                                         metadataStores: mdStores
+                                     })
+                     );
 
-                 callback();
-    }));
+                     deferred.resolve({success:true});
+        }));
+    });
 };
 
 /**
  * Asynchronously create the track list.
  * @private
  */
-Browser.prototype.createTrackList = function( callback ) {
-    // find the tracklist class to use
-    var tl_class = !this.config.show_tracklist           ? 'Null'                         :
-                   (this.config.trackSelector||{}).type  ? this.config.trackSelector.type :
-                                                           'Simple';
+Browser.prototype.createTrackList = function() {
+    return this._deferredFunction('create tracklist', function( deferred ) {
+        // find the tracklist class to use
+        var tl_class = !this.config.show_tracklist           ? 'Null'                         :
+                       (this.config.trackSelector||{}).type  ? this.config.trackSelector.type :
+                                                               'Simple';
+        // load all the classes we need
+        require( ['JBrowse/View/TrackList/'+tl_class],
+                 dojo.hitch( this, function( trackListClass ) {
+                     // instantiate the tracklist and the track metadata object
+                     this.trackListView = new trackListClass(
+                         dojo.mixin(
+                             dojo.clone( this.config.trackSelector ) || {},
+                             {
+                                 trackConfigs: this.config.tracks,
+                                 browser: this,
+                                 trackMetaData: this.trackMetaDataStore
+                             }
+                         )
+                     );
 
-    // load all the classes we need
-    require( ['JBrowse/View/TrackList/'+tl_class],
-             dojo.hitch( this, function( trackListClass ) {
+                     // bind the 't' key as a global keyboard shortcut
+                     this.setGlobalKeyboardShortcut( 't', this.trackListView, 'toggle' );
 
-                 // instantiate the tracklist and the track metadata object
-                 this.trackListView = new trackListClass(
-                     dojo.mixin(
-                         dojo.clone( this.config.trackSelector ) || {},
-                         {
-                             trackConfigs: this.config.tracks,
-                             browser: this,
-                             trackMetaData: this.trackMetaDataStore
-                         }
-                     )
-                 );
+                     // listen for track-visibility-changing messages from
+                     // views and update our tracks cookie
+                     this.subscribe( '/jbrowse/v1/v/tracks/changed', dojo.hitch( this, function() {
+                         this.cookie( "tracks",
+                                      this.view.visibleTrackNames().join(','),
+                                      {expires: 60});
+                     }));
 
-                 // bind the 't' key as a global keyboard shortcut
-                 this.setGlobalKeyboardShortcut( 't', this.trackListView, 'toggle' );
+                     // figure out what initial track list we will use:
+                     //    from a param passed to our instance, or from a cookie, or
+                     //    the passed defaults, or the last-resort default of "DNA"?
+                     var origTracklist =
+                            this.config.forceTracks
+                         || this.cookie( "tracks" )
+                         || this.config.defaultTracks
+                         || "DNA";
 
-                 // listen for track-visibility-changing messages from
-                 // views and update our tracks cookie
-                 this.subscribe( '/jbrowse/v1/v/tracks/changed', dojo.hitch( this, function() {
-                     this.cookie( "tracks",
-                                  this.view.visibleTrackNames().join(','),
-                                  {expires: 60});
-                 }));
+                     this.showTracks( origTracklist );
 
-                 // figure out what initial track list we will use:
-                 //    from a param passed to our instance, or from a cookie, or
-                 //    the passed defaults, or the last-resort default of "DNA"?
-                 var origTracklist =
-                        this.config.forceTracks
-                     || this.cookie( "tracks" )
-                     || this.config.defaultTracks
-                     || "DNA";
-
-                 this.showTracks( origTracklist );
-
-                 callback();
-    }));
+                     deferred.resolve({ success: true });
+        }));
+    });
 };
 
 /**
@@ -823,6 +1016,10 @@ Browser.prototype.navigateTo = function(loc) {
         this.deferredFunctions.push(function() { this.navigateTo(loc); });
         return;
     }
+
+    if( typeof loc != 'string' )
+        console.warn("Warning: JBrowse navigateTo called with strange argument '"+loc+"'", loc);
+    loc = ''+loc;
 
     // if it's a foo:123..456 location, go there
     var location = Util.parseLocString( loc );
@@ -1052,12 +1249,13 @@ Browser.prototype.makeHelpDialog = function () {
     }, helpdiv );
 
     // make a Help link that will show the dialog and set a handler on it
-    var helplink = document.createElement('a');
-    helplink.className = 'topLink';
-    helplink.title = 'Help';
-    helplink.style.cursor = 'help';
-    helplink.appendChild( document.createTextNode('Help'));
-    dojo.connect(helplink, 'onclick', function() { dialog.show(); });
+    var helpButton = new dijitButton(
+        {
+            className: 'help',
+            title: 'Help',
+            innerHTML: '<span class="icon"></span> Help',
+            onClick: function() { dialog.show(); }
+        });
 
     this.setGlobalKeyboardShortcut( '?', dialog, 'show' );
     dojo.connect( document.body, 'onkeydown', function(evt) {
@@ -1065,7 +1263,7 @@ Browser.prototype.makeHelpDialog = function () {
             dialog.hide();
     });
 
-    return helplink;
+    return helpButton.domNode;
 };
 
 /**
@@ -1095,31 +1293,20 @@ Browser.prototype.globalKeyHandler = function( evt ) {
         evt.stopPropagation();
     }
 };
-Browser.prototype.makeGoogleLink = function () {
-    // don't make the link if we were explicitly configured not to
-    if( ( 'share_link' in this.config ) && !this.config.share_link )
-        return null;
-
+Browser.prototype.makeAuthLink = function () {
     var browser = this;
     var google = new googleAuth;
 
-
     // make the share link
-    var link = dojo.create(
-        'a',
-        {
-            className: 'topLink',
-            href: '#',
-            innerHTML: 'Google',
-            title: 'Load and authorize google stuffs',
-            style: {
-                position: 'relative'
-            },
-            onclick: function() {
-                sharePane.show();
+    var button = new dijitButton({
+            className: 'auth',
+            innerHTML: '<span class="icon"></span> Auth',
+            title: 'manage authentication',
+            onClick: function() {
+                pane.show();
 
-                var lp = dojo.position(link);
-                dojo.style( sharePane.domNode, {
+                var lp = dojo.position(button.domNode);
+                dojo.style( pane.domNode, {
                                top: (lp.y+lp.h) + 'px',
                                right: 0,
                                left: ''
@@ -1131,9 +1318,9 @@ Browser.prototype.makeGoogleLink = function () {
         }
     );
 
-    // make the 'google' popup
+    // make the popup
     var container = dojo.create(
-        'div', { });
+        'div', {});
 
     var authLink = dojo.create('input', {
         id: 'authorizeButton',
@@ -1146,17 +1333,17 @@ Browser.prototype.makeGoogleLink = function () {
     }, container );
 
 
-    var sharePane = new dijitDialog(
+    var pane= new dijitDialog(
         {
-            className: 'sharePane',
-            title: 'Do stuff with GDrive',
+            className: 'authPane',
+            title: 'Authentication',
             draggable: false,
             content: [container],
             autofocus: false,
             style: "width:200px"
         });
 
-    return link;
+    return button.domNode;
 };
 
 
@@ -1169,23 +1356,17 @@ Browser.prototype.makeShareLink = function () {
     var shareURL = '#';
 
     // make the share link
-    var link = dojo.create(
-        'a',
-        {
-            className: 'topLink',
-            href: '#',
-            innerHTML: 'Share',
+    var button = new dijitButton({
+            className: 'share',
+            innerHTML: '<span class="icon"></span> Share',
             title: 'share this view',
-            style: {
-                position: 'relative'
-            },
-            onclick: function() {
+            onClick: function() {
                 URLinput.value = shareURL;
                 previewLink.href = shareURL;
 
                 sharePane.show();
 
-                var lp = dojo.position(link);
+                var lp = dojo.position( button.domNode );
                 dojo.style( sharePane.domNode, {
                                top: (lp.y+lp.h) + 'px',
                                right: 0,
@@ -1219,7 +1400,7 @@ Browser.prototype.makeShareLink = function () {
             onblur: function() { copyReminder.style.display = 'none'; }
         });
     var previewLink = dojo.create('a', {
-        innerHTML: 'preview',
+        innerHTML: 'Preview',
         target: '_blank',
         href: shareURL,
         style: { display: 'block', "float": 'right' }
@@ -1256,7 +1437,7 @@ Browser.prototype.makeShareLink = function () {
     dojo.connect( this, "onCoarseMove",             updateShareURL );
     this.subscribe( '/jbrowse/v1/v/tracks/changed', updateShareURL );
 
-    return link;
+    return button.domNode;
 };
 
 Browser.prototype.makeFullViewLink = function () {
@@ -1505,60 +1686,22 @@ Browser.prototype.createNavBox = function( parent ) {
     // if we have fewer than 30 ref seqs, or `refSeqDropdown: true` is
     // set in the config, then put in a dropdown box for selecting
     // reference sequences
-    if( this.refSeqOrder.length && this.refSeqOrder.length < 30 || this.config.refSeqDropdown ) {
-        this.refSeqSelectBox = new dijitSelectBox({
-            name: 'refseq',
-            value: this.refSeq ? this.refSeq.name : null,
-            options: array.map( this.refSeqOrder || [],
-                                function( refseqName ) {
-                return { label: refseqName, value: refseqName };
-            }),
-            onChange: dojo.hitch(this, function( newRefName ) {
-                this.navigateToLocation({ ref: newRefName });
-            })
-        }).placeAt( navbox );
-    }
-
-    // calculate how big to make the location box:  make it big enough to hold the
-    var locLength = this.config.locationBoxLength || function() {
-
-        // if we have no refseqs, just use 20 chars
-        if( ! this.refSeqOrder.length )
-            return 20;
-
-        // if there are not tons of refseqs, pick the longest-named
-        // one.  otherwise just pick the last one
-        var ref = this.refSeqOrder.length < 1000
-            && function() {
-                   var longestNamedRef;
-                   array.forEach( this.refSeqOrder, function(name) {
-                                      var ref = this.allRefs[name];
-                                      if( ! ref.length )
-                                          ref.length = ref.end - ref.start + 1;
-                                      if( ! longestNamedRef || longestNamedRef.length < ref.length )
-                                          longestNamedRef = ref;
-                                  }, this );
-                   return longestNamedRef;
-               }.call(this)
-            || this.refSeqOrder.length && this.allRefs[ this.refSeqOrder[ this.refSeqOrder.length - 1 ] ]
-            || 20;
-
-        var locstring = Util.assembleLocStringWithLength({ ref: ref.name, start: ref.end-1, end: ref.end, length: ref.length });
-        //console.log( locstring, locstring.length );
-        return locstring.length;
-    }.call(this) || 20;
+    var refSeqSelectBoxPlaceHolder = dojo.create('span', {}, navbox );
 
     // make the location box
     this.locationBox = new dijitComboBox(
         {
             id: "location",
             name: "location",
-            style: { width: locLength+'ex' },
+            style: { width: '25ex' },
             maxLength: 400,
-            store: this._makeLocationAutocompleteStore(),
             searchAttr: "name"
         },
         dojo.create('input', {}, navbox) );
+    this.loadNames().then( dojo.hitch(this, function() {
+        this.locationBox.set( 'store', this._makeLocationAutocompleteStore() );
+    }));
+
     this.locationBox.focusNode.spellcheck = false;
     dojo.query('div.dijitArrowButton', this.locationBox.domNode ).orphan();
     dojo.connect( this.locationBox.focusNode, "keydown", this, function(event) {
@@ -1604,6 +1747,56 @@ Browser.prototype.createNavBox = function( parent ) {
                 dojo.stopEvent(event);
             })
         }, dojo.create('button',{},navbox));
+
+
+
+    this.loadRefSeqs().then( dojo.hitch( this, function() {
+        if( this.refSeqOrder.length && this.refSeqOrder.length < 30 || this.config.refSeqDropdown ) {
+            this.refSeqSelectBox = new dijitSelectBox({
+                name: 'refseq',
+                value: this.refSeq ? this.refSeq.name : null,
+                options: array.map( this.refSeqOrder || [],
+                                    function( refseqName ) {
+                    return { label: refseqName, value: refseqName };
+                }),
+                onChange: dojo.hitch(this, function( newRefName ) {
+                    this.navigateToLocation({ ref: newRefName });
+                })
+            }).placeAt( refSeqSelectBoxPlaceHolder );
+        }
+
+        // calculate how big to make the location box:  make it big enough to hold the
+        var locLength = this.config.locationBoxLength || function() {
+
+            // if we have no refseqs, just use 20 chars
+            if( ! this.refSeqOrder.length )
+                return 20;
+
+            // if there are not tons of refseqs, pick the longest-named
+            // one.  otherwise just pick the last one
+            var ref = this.refSeqOrder.length < 1000
+                && function() {
+                       var longestNamedRef;
+                       array.forEach( this.refSeqOrder, function(name) {
+                                          var ref = this.allRefs[name];
+                                          if( ! ref.length )
+                                              ref.length = ref.end - ref.start + 1;
+                                          if( ! longestNamedRef || longestNamedRef.length < ref.length )
+                                              longestNamedRef = ref;
+                                      }, this );
+                       return longestNamedRef;
+                   }.call(this)
+                || this.refSeqOrder.length && this.allRefs[ this.refSeqOrder[ this.refSeqOrder.length - 1 ] ]
+                || 20;
+
+            var locstring = Util.assembleLocStringWithLength({ ref: ref.name, start: ref.end-1, end: ref.end, length: ref.length });
+            //console.log( locstring, locstring.length );
+            return locstring.length;
+        }.call(this) || 20;
+
+
+        this.locationBox.domNode.style.width = locLength+'ex';
+    }));
 
     return navbox;
 };

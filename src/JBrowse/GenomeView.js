@@ -1,4 +1,5 @@
 define([
+           'dojo/_base/declare',
            'JBrowse/Util',
            'dojo/dnd/move',
            'dojo/dnd/Source',
@@ -9,6 +10,7 @@ define([
            'JBrowse/View/Animation/Zoomer',
            'JBrowse/View/Animation/Slider'
        ], function(
+           declare,
            Util,
            dndMove,
            dndSource,
@@ -22,35 +24,57 @@ define([
 
 var dojof = Util.dojof;
 
+// weird subclass of dojo dnd constrained mover to make the location
+// thumb behave better
+var locationThumbMover = declare( dndMove.constrainedMoveable, {
+        constructor: function(node, params){
+                this.constraints = function(){
+                        var n = this.node.parentNode,
+                        mb = dojo.marginBox(n);
+                        mb.t = 0;
+                        return mb;
+                 };
+        }
+});
+
 /**
  * Main view class, shows a scrollable, horizontal view of annotation
  * tracks.  NOTE: All coordinates are interbase.
  * @class
  * @constructor
  */
-var GenomeView = function( browser, elem, stripeWidth, refseq, zoomLevel, browserRoot) {
+var GenomeView = function( browser, elem, stripeWidth, refseq, zoomLevel ) {
 
     // keep a reference to the main browser object
     this.browser = browser;
+    //the page element that the GenomeView lives in
+    this.elem = elem;
+
+   // var seqCharSize = this.calculateSequenceCharacterSize( elem );
+    var charSize = this.getSequenceCharacterSize();
+    this.charWidth = charSize.width;
+    this.seqHeight = charSize.height;
+    this.colorCdsByFrame = false;
 
     this.posHeight = this.calculatePositionLabelHeight( elem );
     // Add an arbitrary 50% padding between the position labels and the
     // topmost track
     this.topSpace = 1.5 * this.posHeight;
 
-    // arbitrary max px per bp
-    this.maxPxPerBp = 20;
+    // WebApollo needs max zoom level to be sequence residues char width
+    this.maxPxPerBp = this.charWidth;
+
+    console.log("charWidth: " + this.charWidth);
+    console.log("seqHeight: " + this.seqHeight);
 
     //the reference sequence
     this.ref = refseq;
     //current scale, in pixels per bp
     this.pxPerBp = zoomLevel;
-    //path prefix for static assets (e.g., cursors)
-    this.browserRoot = browserRoot ? browserRoot : "";
+
     //width, in pixels, of the vertical stripes
     this.stripeWidth = stripeWidth;
-    //the page element that the GenomeView lives in
-    this.elem = elem;
+
 
     // the scrollContainer is the element that changes position
     // when the user scrolls
@@ -91,7 +115,7 @@ var GenomeView = function( browser, elem, stripeWidth, refseq, zoomLevel, browse
     //width, in pixels, of stripes at full zoom, is 10bp
     this.fullZoomStripe = stripeWidth/10 * this.maxPxPerBp;
 
-    this.overview = dojo.byId("overview");
+    this.overview = this.browser.overviewDiv;
     this.overviewBox = dojo.marginBox(this.overview);
 
     this.tracks = [];
@@ -131,7 +155,7 @@ var GenomeView = function( browser, elem, stripeWidth, refseq, zoomLevel, browse
     this.locationThumb = document.createElement("div");
     this.locationThumb.className = "locationThumb";
     this.overview.appendChild(this.locationThumb);
-    this.locationThumbMover = new dndMove.parentConstrainedMoveable(this.locationThumb, {area: "margin", within: true});
+    this.locationThumbMover = new locationThumbMover(this.locationThumb, {area: "margin", within: true});
 
     if ( dojo.isIE ) {
         // if using IE, we have to do scrolling with CSS
@@ -355,16 +379,14 @@ GenomeView.prototype._behaviors = function() { return {
         apply_on_init: true,
         apply: function() {
             var handles = [];
-            this.overviewTrackIterate( function(t) {
-                handles.push( dojo.connect(
-                                  t.div, 'mousedown',
-                                  dojo.hitch( this, 'startRubberZoom',
-                                              dojo.hitch(this,'overview_absXtoBp'),
-                                              t.div,
-                                              t.div
-                                            )
-                              ));
-            });
+            handles.push( dojo.connect(
+                              this.overview, 'mousedown',
+                              dojo.hitch( this, 'startRubberZoom',
+                                          dojo.hitch(this,'overview_absXtoBp'),
+                                          this.overview,
+                                          this.overview
+                                        )
+                          ));
             handles.push(
                 dojo.connect( this.scrollContainer,     "mousewheel",     this, 'wheelScroll', false ),
                 dojo.connect( this.scrollContainer,     "DOMMouseScroll", this, 'wheelScroll', false ),
@@ -525,6 +547,35 @@ GenomeView.prototype._behaviors = function() { return {
         }
     }
 };};
+
+
+GenomeView.prototype.getSequenceCharacterSize = function()  {
+    if (! this._charSize)  {
+	this._charSize = this.calculateSequenceCharacterSize(this.elem);
+    }
+    return this._charSize;
+}
+/**
+ * Conducts a test with DOM elements to measure sequence text width
+ * and height.
+ */
+GenomeView.prototype.calculateSequenceCharacterSize = function( containerElement ) {
+    var widthTest = document.createElement("div");
+    widthTest.className = "sequence";
+    widthTest.style.visibility = "hidden";
+    var widthText = "12345678901234567890123456789012345678901234567890";
+    widthTest.appendChild(document.createTextNode(widthText));
+    containerElement.appendChild(widthTest);
+
+    var result = {
+        width:  widthTest.clientWidth / widthText.length,
+        height: widthTest.clientHeight
+    };
+
+    containerElement.removeChild(widthTest);
+    return result;
+};
+
 
 /**
  * Conduct a DOM test to calculate the height of div.pos-label
@@ -912,7 +963,7 @@ GenomeView.prototype.setLocation = function(refseq, startbp, endbp) {
     this.addOverviewTrack(new LocationScaleTrack({
             label: "overview_loc_track",
             labelClass: "overview-pos",
-            posHeight: this.overviewPosHeight
+            posHeight: Math.round( this.overviewPosHeight * 1.3 )
         }));
         this.sizeInit();
         this.setY(0);
@@ -1087,7 +1138,7 @@ GenomeView.prototype.scaleMouseOut = function( evt ) {
  * Draws the red line across the work area, or updates it if it already exists.
  */
 GenomeView.prototype.drawVerticalPositionLine = function( parent, evt){
-    var numX = evt.pageX;
+    var numX = evt.pageX + 2;
 
     if( ! this.verticalPositionLine ){
         // if line does not exist, create it
@@ -1098,7 +1149,7 @@ GenomeView.prototype.drawVerticalPositionLine = function( parent, evt){
 
     var line = this.verticalPositionLine;
     line.style.display = 'block';      //make line visible
-    line.style.left = numX +'px'; //set location on screen
+    line.style.left = numX+'px'; //set location on screen
 
     this.drawBasePairLabel({ name: 'single', offset: 0, x: numX, parent: parent });
 };
@@ -1122,7 +1173,7 @@ GenomeView.prototype.drawBasePairLabel = function ( args ){
         this.basePairLabels[name] = dojo.create( 'div', {
             className: 'basePairLabel'+(args.className ? ' '+args.className : '' ),
             style: { top: scaleTrackPos.y + scaleTrackPos.h - 3 + 'px' }
-        }, args.parent );
+        }, document.body );
     }
 
     var label = this.basePairLabels[name];
@@ -1275,7 +1326,16 @@ GenomeView.prototype.sizeInit = function() {
     this.overviewBox = dojo.marginBox(this.overview);
 
     //scale values, in pixels per bp, for all zoom levels
-    this.zoomLevels = [1/500000, 1/200000, 1/100000, 1/50000, 1/20000, 1/10000, 1/5000, 1/2000, 1/1000, 1/500, 1/200, 1/100, 1/50, 1/20, 1/10, 1/5, 1/2, 1, 2, 5, 10, this.maxPxPerBp ];
+    var desiredZoomLevels = [1/500000, 1/200000, 1/100000, 1/50000, 1/20000, 1/10000, 1/5000, 1/2000, 1/1000, 1/500, 1/200, 1/100, 1/50, 1/20, 1/10, 1/5, 1/2, 1, 2, 5, 10, 20 ];
+
+    this.zoomLevels = [];
+    for (var i=0; i<desiredZoomLevels.length; i++)  {
+	var zlevel = desiredZoomLevels[i];
+	if (zlevel < this.maxPxPerBp)  { this.zoomLevels.push(zlevel); }
+	else  { break; }  // once get to zoom level >= maxPxPerBp, quit
+    }
+    this.zoomLevels.push(this.maxPxPerBp);
+    
     //make sure we don't zoom out too far
     while (((this.ref.end - this.ref.start) * this.zoomLevels[0])
            < this.getWidth()) {
@@ -1435,6 +1495,7 @@ GenomeView.prototype.updateOverviewHeight = function(trackName, height) {
     var overviewHeight = 0;
     this.overviewTrackIterate(function (track, view) {
         overviewHeight += track.height;
+        track.div.style.height = track.height+'px';
     });
     this.overview.style.height = overviewHeight + "px";
     this.overviewBox = dojo.marginBox(this.overview);
@@ -1482,8 +1543,14 @@ GenomeView.prototype.trimVertical = function(y) {
     }
 };
 
+GenomeView.prototype.redrawTracks = function() {
+    this.trackIterate( function(t) { t.hideAll(); } );
+    this.showVisibleBlocks( true );
+};
+
 GenomeView.prototype.zoomIn = function(e, zoomLoc, steps) {
     if (this.animation) return;
+    this._unsetPosBeforeZoom();
     if (zoomLoc === undefined) zoomLoc = 0.5;
     if (steps === undefined) steps = 1;
     steps = Math.min(steps, (this.zoomLevels.length - 1) - this.curZoom);
@@ -1516,8 +1583,43 @@ GenomeView.prototype.zoomIn = function(e, zoomLoc, steps) {
                700, zoomLoc);
 };
 
+/** WebApollo support for zooming directly to base level, and later restoring previous zoom level before zooming to base */
+GenomeView.prototype.zoomToBaseLevel = function(e, pos) {
+    if (this.animation) return;
+    //   if (this.zoomLevels[this.curZoom] === this.charWidth)  {  console.log("already zoomed to base level"); return; }
+    // if at max zoomLevel then already zoomed to bases, so then no-op
+    var baseZoomIndex = this.zoomLevels.length - 1;
+
+    if (this.curZoom === baseZoomIndex)  { console.log("already zoomed to base level"); return; }
+    this._setPosBeforeZoom(this.minVisible(), this.maxVisible(), this.curZoom);
+    var zoomLoc = 0.5;
+
+    this.showWait();
+    this.trimVertical();
+
+    var relativeScale = this.zoomLevels[baseZoomIndex] / this.pxPerBp;
+    var fixedBp = pos;
+    this.curZoom = baseZoomIndex;
+    this.pxPerBp = this.zoomLevels[baseZoomIndex];
+
+    this.maxLeft = (this.pxPerBp * this.ref.end) - this.getWidth();
+
+    for (var track = 0; track < this.tracks.length; track++)
+	this.tracks[track].startZoom(this.pxPerBp,
+				     fixedBp - ((zoomLoc * this.getWidth())
+						/ this.pxPerBp),
+				     fixedBp + (((1 - zoomLoc) * this.getWidth())
+						/ this.pxPerBp));
+    //YAHOO.log("centerBp: " + centerBp + "; estimated post-zoom start base: " + (centerBp - ((zoomLoc * this.getWidth()) / this.pxPerBp)) + ", end base: " + (centerBp + (((1 - zoomLoc) * this.getWidth()) / this.pxPerBp)));
+    new Zoomer(relativeScale, this,
+               function() {this.zoomUpdate(zoomLoc, fixedBp);},
+               700, zoomLoc);
+};
+
+
 GenomeView.prototype.zoomOut = function(e, zoomLoc, steps) {
     if (this.animation) return;
+    this._unsetPosBeforeZoom();
     if (steps === undefined) steps = 1;
     steps = Math.min(steps, this.curZoom);
     if (0 == steps) return;
@@ -1553,6 +1655,58 @@ GenomeView.prototype.zoomOut = function(e, zoomLoc, steps) {
     new Zoomer(scale, this,
                function() {this.zoomUpdate(zoomLoc, fixedBp);},
                700, zoomLoc);
+};
+
+
+/** WebApollo support for zooming directly to base level, and later restoring previous zoom level before zooming to base */
+GenomeView.prototype.zoomBackOut = function(e) {
+    if (this.animation) { return; }
+    if (!this.isZoomedToBase()) { return; }
+
+    var min = this.posBeforeZoom.min;
+    var max = this.posBeforeZoom.max;
+    var zoomIndex = this.posBeforeZoom.zoomIndex;
+    this.posBeforeZoom = undefined;
+    
+    var zoomLoc = 0.5;
+    this.showWait();
+
+    var scale = this.zoomLevels[zoomIndex] / this.pxPerBp;
+    var fixedBp = (min + max) / 2;
+    this.curZoom = zoomIndex;
+    this.pxPerBp = this.zoomLevels[zoomIndex];
+
+    for (var track = 0; track < this.tracks.length; track++) {
+    	this.tracks[track].startZoom(this.pxPerBp,
+    			fixedBp - ((zoomLoc * this.getWidth())
+    					/ this.pxPerBp),
+    					fixedBp + (((1 - zoomLoc) * this.getWidth())
+    							/ this.pxPerBp));
+	}
+    
+    this.minLeft = this.pxPerBp * this.ref.start;
+    var thisObj = this;
+    // Zooms take an arbitrary 700 milliseconds, which feels about right
+    // to me, although if the zooms were smoother they could probably
+    // get faster without becoming off-putting. -MS
+    new Zoomer(scale, this,
+	       function() {thisObj.setLocation(thisObj.ref, min, max); thisObj.zoomUpdate(zoomLoc, fixedBp); },
+	       700, zoomLoc);
+};
+
+/** WebApollo support for zooming directly to base level, and later restoring previous zoom level before zooming to base */
+GenomeView.prototype.isZoomedToBase = function() {
+	return this.posBeforeZoom !== undefined;
+};
+
+/** WebApollo support for zooming directly to base level, and later restoring previous zoom level before zooming to base */
+GenomeView.prototype._setPosBeforeZoom = function(min, max, zoomIndex) {
+    this.posBeforeZoom = { "min": min, "max": max, "zoomIndex": zoomIndex };
+};
+
+/** WebApollo support for zooming directly to base level, and later restoring previous zoom level before zooming to base */
+GenomeView.prototype._unsetPosBeforeZoom = function() {
+	this.posBeforeZoom = undefined;
 };
 
 GenomeView.prototype.zoomUpdate = function(zoomLoc, fixedBp) {
@@ -1633,15 +1787,18 @@ GenomeView.prototype.trackHeightUpdate = function(trackName, height) {
     this.trackHeights[track] = height;
     this.tracks[track].div.style.height = (height + this.trackPadding) + "px";
     var nextTop = this.trackTops[track];
+    var lastTop = 0;
     if (this.tracks[track].shown) nextTop += height + this.trackPadding;
     for (var i = track + 1; i < this.tracks.length; i++) {
         this.trackTops[i] = nextTop;
         this.tracks[i].div.style.top = nextTop + "px";
+        lastTop = nextTop;
         if (this.tracks[i].shown)
             nextTop += this.trackHeights[i] + this.trackPadding;
     }
-    this.containerHeight = Math.max( nextTop||0, this.getY() + this.getHeight() );
+    this.containerHeight = Math.max( nextTop||0, Math.min( this.getY(), lastTop ) + this.getHeight() );
     this.scrollContainer.style.height = this.containerHeight + "px";
+    this.setY( this.getY() );
 
     this.updateStaticElements({ height: this.getHeight() });
 };
@@ -1670,6 +1827,8 @@ GenomeView.prototype.showVisibleBlocks = function(updateHeight, pos, startX, end
                                           view.pxPerBp,
                                           containerStart, containerEnd);
                       });
+
+    this.browser.publish( '/jbrowse/v1/n/redraw' );
 };
 
 /**
