@@ -47,8 +47,8 @@ define(["dojo/_base/declare"], function(declare){
         manualAuthorize: function(){
             console.debug("trying manually");
             window.gapi.auth.authorize(
-              {'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': false},
-              dojo.hitch( this, 'authorized' ));
+                {'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': false},
+                dojo.hitch( this, 'authorized' ));
         },
 
         // fully authorized

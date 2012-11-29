@@ -204,7 +204,10 @@ return {
                 name   : region + '.' + format.toLowerCase(),
                 data   : output, 
                 format : format
-            }, console.log("file uploaded"));        } 
+            }, function(){
+                console.log("file uploaded");
+            });        
+        } 
     },
 
     // cross-platform function for (portably) reading the value of a radio control. sigh. *rolls eyes*
