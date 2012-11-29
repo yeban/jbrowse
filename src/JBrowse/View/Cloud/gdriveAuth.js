@@ -12,8 +12,8 @@ define(["dojo/_base/declare"], function(declare){
 
         authorize: function(){
             // Called when the client library is loaded to start the auth flow.
-            console.debug("trying auto authorize");
-            window.setTimeout(dojo.hitch(this, 'checkAuth'), 1);
+            console.debug("trying manual authorize");
+            this.manualAuthorize();
         },
 
 
