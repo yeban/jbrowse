@@ -70,6 +70,14 @@ var FRectIndex = declare( null,  {
             // by ID
             byID[ fRect.f.id() ] = fRect;
         }, this );
+    },
+
+    getAll: function( ) {
+        var fRects = [];
+        for( var id in this.byID ) {
+            fRects.push( this.byID[id] );
+        }
+        return fRects;
     }
 });
 
@@ -600,6 +608,85 @@ return declare( [BlockBasedTrack,FeatureDetailMixin,ExportMixin,FeatureContextMe
         delete this.layout;
         delete this.glyphsLoaded;
         this.inherited( arguments );
+    },
+
+    updateStaticElements: function( coords ) {
+        this.inherited( arguments );
+        this.updateFeatureLabelPositions( coords );
+        this.updateFeatureArrowPositions( coords );
+    },
+
+    updateFeatureLabelPositions: function( coords ) {
+        if( ! 'x' in coords )
+            return;
+
+        var viewMin = this.browser.view.minVisible();
+        array.forEach( this.blocks, dojo.hitch( this, function(block) {
+            if( !block || !(block.fRectIndex) )
+                return;
+
+            var viewLeft = block.bpToX(viewMin) + this.label.offsetWidth + 10;
+            var fRects = block.fRectIndex.getAll();
+            array.forEach( fRects, dojo.hitch(this, function( fRect ) {
+                var feature = fRect.f;
+                if( !feature )
+                    return;
+                var fMin = block.bpToX(feature.get('start'));
+                var fMax = block.bpToX(feature.get('end'));
+                var strand = feature.get('strand');
+                var maxLeft = fMax - fMin - Math.max( fRect.label ? fRect.label.w : 0, fRect.description ? fRect.description.w : 0 );
+
+                var context = this.getRenderingContext({block: block });
+                // Sometimes this seems to be affecting features it shouldn't.  Needs further looking into.
+                //console.log(feature.get('start'), feature.get('end'), fMin, viewLeft);
+                // should go by viewArgs' showLabels and showDescriptions
+                if(fRect.label) {
+                    context.clearRect(fRect.l, fRect.rect.h, fRect.w, fRect.label.h);
+                    fRect.label.xOffset = Math.max(0, Math.min( viewLeft - fMin, maxLeft ));
+                    fRect.glyph.renderLabel( context, fRect );
+                }
+                if(fRect.description) {
+                    context.clearRect(fRect.l, fRect.rect.h + fRect.label.h, fRect.w, fRect.description.h);
+                    fRect.description.xOffset = Math.max(0, Math.min( viewLeft - fMin, maxLeft ));
+                    fRect.glyph.renderDescription( context, fRect );
+                }
+            }));
+        }));
+    },
+
+    updateFeatureArrowPositions: function( coords ) {
+        if( ! 'x' in coords )
+            return;
+        var viewMin = this.browser.view.minVisible();
+        var viewMax = this.browser.view.maxVisible();
+        array.forEach( this.blocks, dojo.hitch( this, function(block) {
+            if( !block || !( block.fRectIndex ) )
+                return;
+            var fRects = block.fRectIndex.getAll();
+            array.forEach( fRects, dojo.hitch( this, function( fRect, i ) {
+                var feature = fRect.f;
+                if( !feature )
+                    return;
+                var fMin = block.bpToX( feature.get( 'start' ) );
+                var fMax = block.bpToX( feature.get( 'end' ) );
+                var strand = feature.get( 'strand' );
+                if( !fRect.arrowheadContext ) {
+                    var arrowheadCanvas = dojo.create('canvas', 
+                        {
+                            height: this._getLayout(block.scale).getTotalHeight(),
+                            width: block.domNode.offsetWidth - 1,
+                            style: { position: "absolute" }
+                        },
+                        block.domNode );
+                    fRect.arrowheadContext = arrowheadCanvas.getContext('2d');
+                }
+                fRect.viewInfo.minVisible = viewMin;
+                fRect.viewInfo.maxVisible = viewMax;
+                
+                fRect.glyph.renderArrowhead( fRect.arrowheadContext, fRect );
+
+            }));
+        }));
     }
 });
 });

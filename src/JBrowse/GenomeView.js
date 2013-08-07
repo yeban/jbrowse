@@ -1944,8 +1944,8 @@ scrollUpdate: function() {
     this.trackIterate(function(track) { track.moveBlocks(dStripes); });
 
     var newX = x + (dStripes * this.stripeWidth);
-    this.updateStaticElements( { x: newX } );
     this.rawSetX(newX);
+    this.updateStaticElements( { x: newX } );
     var firstVisible = (newX / this.stripeWidth) | 0;
 },
 

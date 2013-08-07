@@ -2,6 +2,7 @@ define([
            'dojo/_base/declare',
            'dojo/_base/array',
            'dojo/_base/lang',
+           'dojo/dom-construct',
            'JBrowse/Util/FastPromise',
            'JBrowse/View/FeatureGlyph',
            './_FeatureLabelMixin'
@@ -10,6 +11,7 @@ define([
            declare,
            array,
            lang,
+           dom,
            FastPromise,
            FeatureGlyph,
            FeatureLabelMixin
@@ -227,6 +229,7 @@ return declare([ FeatureGlyph, FeatureLabelMixin ], {
             context.font = fRect.label.font;
             context.fillStyle = fRect.label.fill;
             context.textBaseline = fRect.label.baseline;
+            fRect.label.w = context.measureText(fRect.label.text).width;
             context.fillText( fRect.label.text,
                               fRect.l+(fRect.label.xOffset||0),
                               fRect.t+(fRect.label.yOffset||0)
@@ -240,6 +243,7 @@ return declare([ FeatureGlyph, FeatureLabelMixin ], {
             context.font = fRect.description.font;
             context.fillStyle = fRect.description.fill;
             context.textBaseline = fRect.description.baseline;
+            fRect.description.w = context.measureText(fRect.description.text).width;
             context.fillText(
                 fRect.description.text,
                 fRect.l+(fRect.description.xOffset||0),
@@ -250,22 +254,54 @@ return declare([ FeatureGlyph, FeatureLabelMixin ], {
 
     // strand arrowhead
     renderArrowhead: function( context, fRect ) {
+        var block = fRect.viewInfo.block;
+
+        var viewMin = block.bpToX( fRect.viewInfo.minVisible );
+        var viewMax = block.bpToX( fRect.viewInfo.maxVisible );
+
+        if( !fRect.arrowheadContext ) {
+            var arrowheadCanvas = dojo.create('canvas', 
+                {
+                    class: "canvas-arrowhead",
+                    height: fRect.h,
+                    width: 9,
+                    style: { position: "absolute",
+                             top: "0px" }
+                },
+                block.domNode );
+            fRect.arrowheadContext = arrowheadCanvas.getContext('2d');
+        }
+
+        context = fRect.arrowheadContext;
+        context.clearRect( 0, 0, context.canvas.width, context.canvas.height );
+
         if( fRect.strandArrow ) {
-            if( fRect.strandArrow == 1 && fRect.rect.l+fRect.rect.w <= context.canvas.width ) {
+            if( fRect.strandArrow == 1 ) {
                 this.getEmbeddedImage( 'plusArrow' )
                     .then( function( img ) {
+                               var left = fRect.rect.l + fRect.rect.w;
+                               if( viewMax !== undefined ) {
+                                   left = Math.max( fRect.rect.l , Math.min( left, viewMax - 9 ) );
+                               }
+                               context.canvas.style.left = left + "px";
                                context.imageSmoothingEnabled = false;
-                               context.drawImage( img, fRect.rect.l + fRect.rect.w, fRect.t + (fRect.rect.h-img.height)/2 );
+                               context.drawImage( img, 0, fRect.t + (fRect.rect.h-img.height)/2 );
                            });
             }
-            else if( fRect.strandArrow == -1 && fRect.rect.l >= 0 ) {
+            else if( fRect.strandArrow == -1 ) {
                 this.getEmbeddedImage( 'minusArrow' )
                     .then( function( img ) {
+                               var left = fRect.rect.l - 9;
+                               if( viewMin !== undefined ) {
+                                    left = Math.min( fRect.rect.l + fRect.rect.w - 9, Math.max( left, viewMin ) );
+                               }
+                               context.canvas.style.left = left + "px";
                                context.imageSmoothingEnabled = false;
-                               context.drawImage( img, fRect.rect.l-9, fRect.t + (fRect.rect.h-img.height)/2 );
+                               context.drawImage( img, 0, fRect.t + (fRect.rect.h-img.height)/2 );
                            });
             }
         }
+
     }
 
 });
