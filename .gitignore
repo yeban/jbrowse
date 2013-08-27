@@ -22,4 +22,4 @@ sample_data/raw/tomato
 samtools-master/
 setup.log
 MYMETA.*
-
+bower_components
