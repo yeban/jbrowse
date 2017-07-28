@@ -1,0 +1,10 @@
+.transcript-overlay  {
+    position: absolute;
+    width: 100%;
+    min-width: 1px;
+    height: 7px;
+    margin-top: 2px;
+    /*background-color: #ED9185;*/
+    background-color: #dadada;
+    z-index: 2;
+}
