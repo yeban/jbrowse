@@ -1,10 +1,19 @@
-.transcript-overlay  {
+#track_Edit  {
     position: absolute;
     width: 100%;
     min-width: 1px;
     height: 7px;
     margin-top: 2px;
-    /*background-color: #ED9185;*/
-    background-color: #dadada;
-    z-index: 2;
+    background-color: #FFFFDD;
+    /*background-color: #dadada;*/
+    /*z-index: 2;*/
+}
+
+.transcript {
+    position: absolute;
+    height: 11px;
+    /*background: url('../img/jbrowse/dark_20x3.png') repeat-x 0 4px;*/
+    z-index: 6;
+    min-width: 1px;
+    cursor: pointer;
 }

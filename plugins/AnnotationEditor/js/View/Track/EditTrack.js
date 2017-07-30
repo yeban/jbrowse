@@ -1,6 +1,6 @@
 define([
             'dojo/_base/declare',
-            'AnnotationEditor/jslib/jquery/jquery',
+            'jquery',
             'AnnotationEditor/jslib/underscore',
             'AnnotationEditor/jslib/jqueryui/droppable',
             'AnnotationEditor/jslib/jqueryui/resizable',
@@ -37,8 +37,9 @@ var EditTrack = declare(DraggableFeatureTrack,
 {
     constructor: function( args ) {
         this.exportAdapters = [];
+        var thisB = this;
 
-        this.selectionManager = this.setSelectionManager(this.browser.annotSelectionManager);
+        this.selectionManager = this.setSelectionManager(thisB.annotEdit.annotSelectionManager);
 
         /**
          * only show residues overlay if "pointer-events" CSS property is supported
@@ -58,10 +59,10 @@ var EditTrack = declare(DraggableFeatureTrack,
         this.gview.browser.setGlobalKeyboardShortcut(8,  this, 'deleteSelectedFeatures', true);
         this.gview.browser.setGlobalKeyboardShortcut(46, this, 'deleteSelectedFeatures', true);
 
-        $(window).on('storage', _.bind(function (evt) {
-            this.store.syncFromLocalStorage();
-            this.changed({sync: false});
-        }, this));
+        $(window).on('storage', function (evt) {
+            thisB.store.syncFromLocalStorage();
+            thisB.changed({sync: false});
+        });
 
         this.changed({sync: false});
     },
@@ -87,13 +88,14 @@ var EditTrack = declare(DraggableFeatureTrack,
      * Make the track droppable.
      */
     makeTrackDroppable: function() {
+        var thisB = this;
         $(this.div).droppable({
             tolerance: "pointer",
             accept: ".selected-feature",
-            drop:   _.bind(function (event, ui) {
-                var selection = this.browser.featSelectionManager.getSelection();
-                this.addDraggedFeatures(selection);
-            }, this)
+            drop:   function (event, ui) {
+                var selection = thisB.browser.featSelectionManager.getSelection();
+                thisB.addDraggedFeatures(selection);
+            }
         });
     },
 
@@ -104,6 +106,7 @@ var EditTrack = declare(DraggableFeatureTrack,
     renderFeature: function (feature, uniqueId, block, scale, labelScale, descriptionScale, containerStart, containerEnd) {
         var featDiv  = this.inherited(arguments);
         var $featDiv = $(featDiv);
+        var thisB = this;
 
         $featDiv
         .attr('data-toggle', 'context')
@@ -115,12 +118,12 @@ var EditTrack = declare(DraggableFeatureTrack,
             tolerance:  "pointer",
             hoverClass: "annot-drop-hover",
 
-            drop: _.bind(function (event, ui) {
+            drop: function (event, ui) {
                 var transcript = featDiv.feature;
-                var selection = this.browser.featSelectionManager.getSelection();
-                this.addDraggedFeatures(selection, transcript);
+                var selection = thisB.browser.featSelectionManager.getSelection();
+                thisB.addDraggedFeatures(selection, transcript);
                 event.stopPropagation();
-            }, this)
+            }
         });
 
         return featDiv;
@@ -149,6 +152,7 @@ var EditTrack = declare(DraggableFeatureTrack,
      */
     onAnnotMouseDown: function (event)  {
         event = event || window.event;
+        var thisB = this;
         var featureDiv = this.getLowestFeatureDiv(event.currentTarget ||
                                                    event.srcElement);
 
@@ -165,7 +169,7 @@ var EditTrack = declare(DraggableFeatureTrack,
             // resize is called during resize whenever resize handle is dragged.
             // We take advantage of that to draw a vertical line and indicate
             // base pair coordinate for reference.
-            resize: _.bind(function (event, ui) {
+            resize: function (event, ui) {
                 // If snapping, reset event.pageX so that the red vertical line
                 // snaps as well.
                 if (zoomBP) {
@@ -182,12 +186,12 @@ var EditTrack = declare(DraggableFeatureTrack,
                 }
 
                 // Draw vertical line with a base pair coordinate indicator.
-                this.gview.drawVerticalPositionLine(this.div, event);
-            }, this),
+                thisB.gview.drawVerticalPositionLine(this.div, event);
+            },
 
             // Calculate the final coordinates and accordingly modify the
             // feature, and do any necessary cleanup when resize ends.
-            stop: _.bind(function (event, ui) {
+            stop: function (event, ui) {
                 // Clear vertical line and base pair coordinate indicator.
                 this.gview.clearVerticalPositionLine();
                 this.gview.clearBasePairLabels();
@@ -197,26 +201,26 @@ var EditTrack = declare(DraggableFeatureTrack,
 
                 var leftDeltaPixels  = ui.position.left - ui.originalPosition.left;
                 var rightDeltaPixels = ui.position.left + ui.size.width - ui.originalPosition.left - ui.originalSize.width;
-                var leftDeltaBases   = Math.round(this.gview.pxToBp(leftDeltaPixels));
-                var rightDeltaBases  = Math.round(this.gview.pxToBp(rightDeltaPixels));
+                var leftDeltaBases   = Math.round(thisB.gview.pxToBp(leftDeltaPixels));
+                var rightDeltaBases  = Math.round(thisB.gview.pxToBp(rightDeltaPixels));
 
                 var newLeft  = exon.get('start') + leftDeltaBases;
                 var newRight = exon.get('end')   + rightDeltaBases;
 
                 // FIXME:
                 //   Should move this to a separate function.
-                this.getRefSeq(function (refSeq) {
-                    var newTranscript = this.resizeExon(refSeq, transcript, exon, newLeft, newRight);
+                thisB.getRefSeq(function (refSeq) {
+                    var newTranscript = thisB.resizeExon(refSeq, transcript, exon, newLeft, newRight);
                     newTranscript.set('name', transcript.get('name'));
-                    this.replaceTranscript(transcript, newTranscript, function (t) {
-                        _.each(this.filterExons(t), _.bind(function (f) {
-                            if (this.areFeaturesOverlapping(exon, f)) {
-                                this.highlightFeature(f);
+                    thisB.replaceTranscript(transcript, newTranscript, function (t) {
+                        _.each(thisB.filterExons(t), function (f) {
+                            if (thisB.areFeaturesOverlapping(exon, f)) {
+                                thisB.highlightFeature(f);
                             }
-                        }, this));
+                        });
                     });
                 });
-            }, this)
+            }
         });
         event.stopPropagation();
     },

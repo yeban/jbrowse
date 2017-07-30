@@ -116,6 +116,13 @@ return declare( JBrowsePlugin,
             console.dir(trackConfs);
             browser.addStoreConfig('scratchpad',trackConfs);
 
+            if (browser && browser.view && browser.view.tracks) {
+                var tracks = browser.view.tracks;
+                for (var i = 0; i < tracks.length; i++) {
+                    return tracks[i] instanceof EditTrack;
+                }
+            }
+
             browser.publish( '/jbrowse/v1/c/tracks/show', trackConfs );
             // gb.showTracks(["DNA","gene","Edit"]);
         })
