@@ -1,11 +1,12 @@
 define([
             'dojo/_base/declare',
             'jquery',
-            'AnnotationEditor/jslib/underscore',
+            'underscore',
             'AnnotationEditor/jslib/jqueryui/droppable',
             'AnnotationEditor/jslib/jqueryui/resizable',
             'AnnotationEditor/jslib/contextmenu',
             'AnnotationEditor/View/Track/DraggableHTMLFeatures',
+            'AnnotationEditor/Store/SeqFeature/ScratchPad',
             'AnnotationEditor/FeatureSelectionManager',
             'JBrowse/Model/SimpleFeature',
             'JBrowse/Util',
@@ -22,6 +23,7 @@ define([
                  resizable,
                  contextmenu,
                  DraggableFeatureTrack,
+                 ScratchPad,
                  FeatureSelectionManager,
                  SimpleFeature,
                  Util,
@@ -38,6 +40,20 @@ var EditTrack = declare(DraggableFeatureTrack,
     constructor: function( args ) {
         this.exportAdapters = [];
         var thisB = this;
+        
+        this.sequenceStore = this.store;
+        var annotStoreConfig = dojo.clone(this.config);
+        annotStoreConfig.browser = this.browser;
+        annotStoreConfig.refSeq = this.refSeq;
+        var annotStore = new ScratchPad(annotStoreConfig);
+        this.store = annotStore;
+        annotStoreConfig.name = this.store.name;
+        this.browser._storeCache[this.store.name] = {
+            refCount: 1,
+            store: this.store
+        };
+        console.log("in EditTrack");
+        console.dir(thisB);
 
         this.selectionManager = this.setSelectionManager(thisB.annotEdit.annotSelectionManager);
 
@@ -90,10 +106,14 @@ var EditTrack = declare(DraggableFeatureTrack,
     makeTrackDroppable: function() {
         var thisB = this;
         $(this.div).droppable({
+            // console.dir(thisB);
             tolerance: "pointer",
             accept: ".selected-feature",
             drop:   function (event, ui) {
-                var selection = thisB.browser.featSelectionManager.getSelection();
+                // console.log("check EditTrack: "+thisB.featSelectionManager.name);
+                console.dir(thisB);
+                // var selection = thisB.browser.featSelectionManager.getSelection();
+                var selection = thisB.selectionManager.getSelection();
                 thisB.addDraggedFeatures(selection);
             }
         });
@@ -120,7 +140,8 @@ var EditTrack = declare(DraggableFeatureTrack,
 
             drop: function (event, ui) {
                 var transcript = featDiv.feature;
-                var selection = thisB.browser.featSelectionManager.getSelection();
+                // var selection = thisB.browser.featSelectionManager.getSelection();
+                var selection = thisB.selectionManager.getSelection();
                 thisB.addDraggedFeatures(selection, transcript);
                 event.stopPropagation();
             }
@@ -235,9 +256,9 @@ var EditTrack = declare(DraggableFeatureTrack,
 
     /* CONTROLLERS - bridge between the view and model layer */
     addDraggedFeatures: function (selection, transcript) {
-        var transcripts = _.map(selection, _.bind(function (s) {
+        var transcripts = _.map(selection, function (s) {
             return this.normalizeFeature(s.feature, s.track);
-        }, this));
+        });
         if (transcript) {
             transcripts.push(transcript);
         }
@@ -249,7 +270,7 @@ var EditTrack = declare(DraggableFeatureTrack,
 
         var whichStrandModal   = $('#which-strand');
         var whichStrandButtons = $('#which-strand button');
-        var proceedWithStrand  = _.bind(function (eventOrStrand) {
+        var proceedWithStrand  = function (eventOrStrand) {
             whichStrandButtons.off('click', proceedWithStrand);
             var strand = (eventOrStrand instanceof $.Event) ?
                 parseInt($(eventOrStrand.target).val()) : eventOrStrand;
@@ -271,7 +292,7 @@ var EditTrack = declare(DraggableFeatureTrack,
                     }
                 });
             }
-        }, this);
+        };
 
         if (!this.areOnSameStrand(transcripts)) {
             whichStrandButtons.on('click', proceedWithStrand);

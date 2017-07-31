@@ -1,9 +1,10 @@
-define(['underscore',
+define(['AnnotationEditor/jslib/underscore',
         'dojo/_base/declare',
+        'dojo/_base/array',
         'JBrowse/Store/SeqFeature',
         'JBrowse/Model/SimpleFeature',
-        'JBrowse/Store/Stack']
-, function(_, declare, SeqFeature, SimpleFeature, Stack) {
+        'AnnotationEditor/Store/Stack']
+, function(_, declare, array, SeqFeature, SimpleFeature, Stack) {
 
     var Scratchpad = declare(SeqFeature, {
 
@@ -16,7 +17,7 @@ define(['underscore',
 
             // If no features in localStorage, start with server sent feature
             // if any.
-            if (_.isEmpty(this.features) && this.config.features) {
+            if (this.features && this.config.features) {
                 this.features = this._makeFeatures(this.config.features);
                 this.undoStateStack = new Stack();
                 this.redoStateStack = new Stack();
@@ -36,14 +37,14 @@ define(['underscore',
         },
 
         getFeatures: function (query, featCallback, endCallback, errorCallback) {
-            console.log('Scratchpad: getFeatures');
             var start = query.start;
             var end   = query.end;
-            _.each(this.features, _.bind(function (f) {
+            var thisB = this;
+            array.forEach(thisB.features, function (f) {
                 if (!(f.get('end') < start || f.get('start') > end)) {
                     featCallback(f);
                 }
-            }, this));
+            });
             if (endCallback)  { endCallback() }
         },
 
@@ -138,7 +139,7 @@ define(['underscore',
         },
 
         _parseInt: function (data) {
-            _.each(['start','end','strand'], function (field) {
+            array.forEach(['start','end','strand'], function (field) {
                 if (field in data)
                     data[field] = parseInt(data[field]);
             });
@@ -158,7 +159,7 @@ define(['underscore',
             var minStart = Infinity;
             var maxEnd = -Infinity;
             var featureCount = 0;
-            _.each(this.features, function (f) {
+            array.forEach(this.features, function (f) {
                 var s = f.get('start');
                 var e = f.get('end');
                 if (s < minStart)
