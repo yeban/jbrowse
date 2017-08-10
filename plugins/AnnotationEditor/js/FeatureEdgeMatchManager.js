@@ -40,6 +40,7 @@ var FeatureEdgeMatchManager = declare(null, {
      *    selections and redoing styles for any remaining selections
      */
     selectionCleared: function(selected)  {
+        // console.log('seelectionCleated invoke_SEM: '+this.SHOW_EDGE_MATCHES);
         if( this.SHOW_EDGE_MATCHES )  {
             $(".left-edge-match").removeClass("left-edge-match");
             $(".right-edge-match").removeClass("right-edge-match");
@@ -69,6 +70,8 @@ var FeatureEdgeMatchManager = declare(null, {
     // still assuming index 0 for start, index 1 for end
     // assumes all tracks have two-level features, and thus track.fields and track.subFields are populated
     selectionAdded: function (rec) {
+        console.log("selectionAdded invoked in FEMM: "+this.SHOW_EDGE_MATCHES);
+        console.dir(rec);
         var feat = rec.feature;
         if ( ! this.SHOW_EDGE_MATCHES ) {
             return;
@@ -84,6 +87,7 @@ var FeatureEdgeMatchManager = declare(null, {
 
         var qmin = source_feat.get('start');
         var qmax = source_feat.get("end");
+        // console.log('check FEMM: s-'+source_feat.get('start')+'-e-'+source_feat.get('end'));
 
         var unmatchableTypes = this.unmatchableTypes;
         var unedgeableTypes = this.unedgeableTypes;
@@ -103,7 +107,8 @@ var FeatureEdgeMatchManager = declare(null, {
                 var query =  { ref: target_track.refSeq.name, start: qmin, end: qmax };
                 featureStore.getFeatures(query, function(target_feat, path) {
                     // some stores invoke the callback (with target_feat = undefined) even if no features meet query, so catching this case
-                    if (! target_feat)  { return; }  
+                    if (! target_feat)  { return; }
+                    // console.log("target_feat "+JSON.stringify(target_feat));  
                     var target_subfeats = target_feat.get('subfeatures');
                     if (! target_subfeats) {
                         target_subfeats = [ target_feat ];
@@ -112,8 +117,12 @@ var FeatureEdgeMatchManager = declare(null, {
                     if (source_subfeats instanceof Array &&
                         target_subfeats instanceof Array)  {
                         var tid = target_feat.id();
+                        // console.log("tid: ");
+                        // console.dir(tid);
                         if (tid)  {
                             var tdiv = target_track.getFeatDiv(target_feat);
+                            // console.log("tdiv: ");
+                            // console.dir(tdiv);
                             if (tdiv)  {  // only keep going if target feature.uid already populated
                                 for (var i=0; i < source_subfeats.length; i++)  {
                                     var ssfeat = source_subfeats[i];

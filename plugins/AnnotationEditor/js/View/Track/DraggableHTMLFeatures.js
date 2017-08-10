@@ -82,6 +82,7 @@ var draggableTrack = declare(HTMLFeatureTrack,
                           trackDiv, labelDiv,
                           widthPct, widthPx, scale) {
         this.inherited( arguments );
+        console.log("setViewInfo draggable");
 
         var $div = $(this.div);
         var track = this;
@@ -91,12 +92,14 @@ var draggableTrack = declare(HTMLFeatureTrack,
         // setting up mousedown and mouseup handlers to enable click-in-whitespace to clear selection
         //    (without conflicting with JBrowse drag-in-whitespace to scroll)
         $div.bind('mousedown', function(event)  {
+                      console.log("mmousedown trigger");
                       var target = event.target;
                       if (! (target.feature || target.subfeature))  {
                           track.last_whitespace_mousedown_loc = [ event.pageX, event.pageY ];
                       }
                   } );
         $div.bind('mouseup', function (event) {
+                      console.log("mmouseup trigger");
                       var target = event.target;
                       if (! (target.feature || target.subfeature))  {  // event not on feature, so must be on whitespace
                           var xup = event.pageX;
@@ -156,6 +159,7 @@ var draggableTrack = declare(HTMLFeatureTrack,
 
         /* track click diagnostic (and example of how to add additional track mouse listener?)  */
         $div.bind("click", function(event) {
+                      console.log("click trigger");
                       // console.log("track click, base position: " + track.gview.getGenomeCoord(event));
                       var target = event.target;
                       if (target.feature || target.subfeature)  {
@@ -214,6 +218,7 @@ var draggableTrack = declare(HTMLFeatureTrack,
     renderFeature: function(feature, uniqueId, block, scale, labelScale, descriptionScale, 
                             containerStart, containerEnd) {
         var featdiv = this.inherited( arguments );
+        console.log("renderFeature (DHF)");
         if (featdiv)  {  // just in case featDiv doesn't actually get created
             var $featdiv = $(featdiv);
             $featdiv.on("mousedown", dojo.hitch( this, 'onFeatureMouseDown'));
@@ -666,12 +671,14 @@ var draggableTrack = declare(HTMLFeatureTrack,
      */
     onFeatureMouseDown: function(event) {
         // event.stopPropagation();
+        console.log("onFeatureMouseDown");
 
         this.handleFeatureSelection(event);
         this.handleFeatureDragSetup(event);
     },
 
    handleFeatureSelection: function (event)  {
+       console.log("handleFeatureSelection invoked");
        var track = this;
        var feature_div = (event.currentTarget || event.srcElement);
        var feature = feature_div.feature || feature_div.subfeature;
@@ -745,6 +752,8 @@ var draggableTrack = declare(HTMLFeatureTrack,
      *   7. can drag multiple transcripts from different tracks
      */
     handleFeatureDragSetup: function (event) {
+        console.log("handleFeatureDragSetup rtrig: ");
+        console.dir(this.selectionManager);
         var target  = (event.currentTarget || event.srcElement);
         var $target = $(target);
         var isSelected = this.selectionManager.isSelected({feature: target.feature || target.subfeature, track: this});
@@ -758,8 +767,12 @@ var draggableTrack = declare(HTMLFeatureTrack,
                     $holder.addClass('multifeature-draggable-helper');
 
                     var selection = this.selectionManager.getSelection();
+                    console.log('selectionManager getSelection');
+                    console.dir(selection);
                     _.each(selection, function (selection) {
                         var featureDiv = selection.track.getFeatDiv(selection.feature);
+                        console.log("featureDiv: ");
+                        console.dir(featureDiv);
                         if (featureDiv)  {
                             var $featureDiv = $(featureDiv);
                             var featureOffset = $featureDiv.offset();
@@ -776,7 +789,7 @@ var draggableTrack = declare(HTMLFeatureTrack,
 
                 var validDrop;
                 $target.draggable({ // draggable() adds "ui-draggable" class to div
-                        zIndex:  9,
+                        // zIndex:  9,
                         helper:  multifeature_draggable_helper,
                         appendTo:'body',
                         opacity: 0.5,
@@ -786,8 +799,10 @@ var draggableTrack = declare(HTMLFeatureTrack,
                             return;
                         },
                         stop: _.bind(function (event, ui) {
+                            console.log("is Dropped? "+validDrop);
                             if (validDrop) {
-                                this.selectionManager.clearAllSelection();
+                                console.dir(this.selectionManager.getSelection());
+                                // this.selectionManager.clearAllSelection();
                             }
                         }, this)
                 });
@@ -807,6 +822,7 @@ var draggableTrack = declare(HTMLFeatureTrack,
     },
 
     onFeatureDoubleClick: function( event )  {
+        console.log("onFeatureDoubleClick trigger");
         var ftrack = this;
         var selman = ftrack.selectionManager;
         // prevent event bubbling up to genome view and triggering zoom

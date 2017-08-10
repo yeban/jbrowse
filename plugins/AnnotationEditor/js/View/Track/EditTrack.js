@@ -94,6 +94,7 @@ var EditTrack = declare(DraggableFeatureTrack,
      * Extend superclass method to make this track droppable.
      */
     setViewInfo: function (genomeView, heightUpdate, numBlocks, trackDiv, widthPct, widthPx, scale) {
+        console.log("setViewInfo edittrack");
         this.inherited(arguments);
         this.makeTrackDroppable();
         this.hide();
@@ -105,17 +106,18 @@ var EditTrack = declare(DraggableFeatureTrack,
      */
     makeTrackDroppable: function() {
         var thisB = this;
+        console.log("makeTrackDroppable invoked");
+        console.dir(thisB);
         $(this.div).droppable({
             // console.dir(thisB);
             tolerance: "pointer",
             accept: ".selected-feature",
-            drop:   function (event, ui) {
-                // console.log("check EditTrack: "+thisB.featSelectionManager.name);
-                console.dir(thisB);
+            drop:   _.bind(function (event, ui) {
                 // var selection = thisB.browser.featSelectionManager.getSelection();
-                var selection = thisB.selectionManager.getSelection();
+                var selection = this.selectionManager.getSelection();
+                console.log("inside selection: "+this.div.className);
                 thisB.addDraggedFeatures(selection);
-            }
+            }, this)
         });
     },
 
@@ -125,6 +127,7 @@ var EditTrack = declare(DraggableFeatureTrack,
      */
     renderFeature: function (feature, uniqueId, block, scale, labelScale, descriptionScale, containerStart, containerEnd) {
         var featDiv  = this.inherited(arguments);
+        console.log("renderFeature preffer (ET)");
         var $featDiv = $(featDiv);
         var thisB = this;
 
@@ -256,6 +259,8 @@ var EditTrack = declare(DraggableFeatureTrack,
 
     /* CONTROLLERS - bridge between the view and model layer */
     addDraggedFeatures: function (selection, transcript) {
+        console.log("addDraggedFeatures invoked");
+        console.dir(selection);
         var transcripts = _.map(selection, function (s) {
             return this.normalizeFeature(s.feature, s.track);
         });
@@ -271,6 +276,7 @@ var EditTrack = declare(DraggableFeatureTrack,
         var whichStrandModal   = $('#which-strand');
         var whichStrandButtons = $('#which-strand button');
         var proceedWithStrand  = function (eventOrStrand) {
+            console.log("proceedWithStrand invoked: "+eventOrStrand);
             whichStrandButtons.off('click', proceedWithStrand);
             var strand = (eventOrStrand instanceof $.Event) ?
                 parseInt($(eventOrStrand.target).val()) : eventOrStrand;
@@ -1827,6 +1833,7 @@ var EditTrack = declare(DraggableFeatureTrack,
     },
 
     insertTranscripts: function (transcripts, callback) {
+        console.log("Did insertTranscripts invoked?");
         if (transcripts.length < 1) return;
 
         this.store.backupStore();
