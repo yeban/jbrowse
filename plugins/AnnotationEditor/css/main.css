@@ -17,3 +17,25 @@
     min-width: 1px;
     cursor: pointer;
 }
+
+.selected-feature {
+    outline-style: solid;
+    outline-color: black;
+    outline-width: 4px;
+}
+
+.left-edge-match  {
+    border-left: solid black 2px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+}
+
+.right-edge-match  {
+    border-right: solid black 2px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+}
