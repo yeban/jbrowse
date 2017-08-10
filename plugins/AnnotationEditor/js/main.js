@@ -6,8 +6,8 @@ define([
            'AnnotationEditor/FeatureSelectionManager',
            'AnnotationEditor/TrackConfigTransformer',
            'JBrowse/Browser',
-           'JBrowse/Plugin',
-           'AnnotationEditor/View/Track/EditTrack'
+           'JBrowse/Plugin'
+           // 'AnnotationEditor/View/Track/EditTrack'
        ],
        function(
            declare,
@@ -17,8 +17,8 @@ define([
            FeatureSelectionManager,
            TrackConfigTransformer,
            Browser,
-           JBrowsePlugin,
-           EditTrack
+           JBrowsePlugin
+           // EditTrack
        ) {
 return declare( JBrowsePlugin,
 {
@@ -28,7 +28,7 @@ return declare( JBrowsePlugin,
         console.log( "plugin: AnnotationEditor" );
         var browser = this.browser;
         var thisB = this;
-        console.dir(browser);
+        console.dir(thisB);
 
         // hand the browser object to the feature edge match manager
         FeatureEdgeMatchManager.setBrowser( browser );
@@ -116,14 +116,14 @@ return declare( JBrowsePlugin,
             console.dir(trackConfs);
             browser.addStoreConfig('scratchpad',trackConfs);
 
-            if (browser && browser.view && browser.view.tracks) {
-                var tracks = browser.view.tracks;
-                for (var i = 0; i < tracks.length; i++) {
-                    return tracks[i] instanceof EditTrack;
-                }
-            }
+            // if (browser && browser.view && browser.view.tracks) {
+            //     var tracks = browser.view.tracks;
+            //     for (var i = 0; i < tracks.length; i++) {
+            //         return tracks[i] instanceof EditTrack;
+            //     }
+            // }
 
-            browser.publish( '/jbrowse/v1/c/tracks/show', trackConfs );
+            // browser.publish( '/jbrowse/v1/c/tracks/show', trackConfs );
             // gb.showTracks(["DNA","gene","Edit"]);
         })
     }
