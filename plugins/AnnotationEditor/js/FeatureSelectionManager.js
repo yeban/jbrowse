@@ -45,6 +45,7 @@ return declare( null,
         // if this selection manager has had setClearOnAdd(others)
         // called to set other selection managers to clear selection
         // from when
+        console.log("FSM addToSelection: this.clearOnAdd => "+this.clearOnAdd+" keepOtherTracksSelection => "+keepOtherTracksSelection);
         if (this.clearOnAdd && !keepOtherTracksSelection)  {
 	    for (var i=0; i<this.clearOnAdd.length; i++)  {
 	        this.clearOnAdd[i].clearSelection();
@@ -73,6 +74,8 @@ return declare( null,
 	    this.removeFromSelection( { feature: parent, track: rec.track } );
         }
         selarray.push( rec );
+        console.log("FSM addToSelection: rec => ");
+        console.dir(rec);
         var lislength = this.listeners.length;
         for (var lindex = 0; lindex < lislength; lindex++)  {
 	    var listener = this.listeners[lindex];

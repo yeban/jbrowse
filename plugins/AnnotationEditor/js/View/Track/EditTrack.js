@@ -1,10 +1,10 @@
 define([
             'dojo/_base/declare',
-            'jquery',
-            'underscore',
-            'AnnotationEditor/jslib/jqueryui/droppable',
-            'AnnotationEditor/jslib/jqueryui/resizable',
-            'AnnotationEditor/jslib/contextmenu',
+            'jquery/jquery',
+            'underscore/underscore',
+            'jqueryui/droppable',
+            'jqueryui/resizable',
+            'contextmenu/contextmenu',
             'AnnotationEditor/View/Track/DraggableHTMLFeatures',
             'AnnotationEditor/Store/SeqFeature/ScratchPad',
             'AnnotationEditor/FeatureSelectionManager',
@@ -14,7 +14,7 @@ define([
             'JBrowse/CodonTable',
             'FileSaver/FileSaver',
             'AnnotationEditor/Store/Stack',
-            'AnnotationEditor/jslib/gvapi'
+            'genevalidator/gvapi'
         ],
         function(declare,
                  $,
@@ -41,7 +41,7 @@ var EditTrack = declare(DraggableFeatureTrack,
         this.exportAdapters = [];
         var thisB = this;
         
-        this.sequenceStore = this.store;
+        // this.sequenceStore = this.store;
         var annotStoreConfig = dojo.clone(this.config);
         annotStoreConfig.browser = this.browser;
         annotStoreConfig.refSeq = this.refSeq;
@@ -55,7 +55,7 @@ var EditTrack = declare(DraggableFeatureTrack,
         console.log("in EditTrack");
         console.dir(thisB);
 
-        this.selectionManager = this.setSelectionManager(thisB.annotEdit.annotSelectionManager);
+        // this.selectionManager = this.setSelectionManager(thisB.annotEdit.annotSelectionManager);
 
         /**
          * only show residues overlay if "pointer-events" CSS property is supported
@@ -261,15 +261,16 @@ var EditTrack = declare(DraggableFeatureTrack,
     addDraggedFeatures: function (selection, transcript) {
         console.log("addDraggedFeatures invoked");
         console.dir(selection);
+        var thisB = this;
         var transcripts = _.map(selection, function (s) {
-            return this.normalizeFeature(s.feature, s.track);
+            return thisB.normalizeFeature(s.feature, s.track);
         });
         if (transcript) {
             transcripts.push(transcript);
         }
 
         if (transcripts.length === 1) {
-            this.insertTranscript(transcripts[0]);
+            thisB.insertTranscript(transcripts[0]);
             return;
         }
 
@@ -288,25 +289,25 @@ var EditTrack = declare(DraggableFeatureTrack,
                     }
                 }, this));
 
-                this.getRefSeq(function (refSeq) {
-                    var newTranscript = this.mergeTranscripts(refSeq, transcripts);
+                thisB.getRefSeq(function (refSeq) {
+                    var newTranscript = thisB.mergeTranscripts(refSeq, transcripts);
                     if (transcript) {
-                        this.replaceTranscript(transcript, newTranscript);
+                        thisB.replaceTranscript(transcript, newTranscript);
                     }
                     else {
-                        this.insertTranscript(newTranscript);
+                        thisB.insertTranscript(newTranscript);
                     }
                 });
             }
         };
 
-        if (!this.areOnSameStrand(transcripts)) {
+        if (!thisB.areOnSameStrand(transcripts)) {
             whichStrandButtons.on('click', proceedWithStrand);
             whichStrandModal.modal();
         }
         else {
             var strand = transcripts[0].get('strand');
-            proceedWithStrand.apply(this, [strand]);
+            proceedWithStrand.apply(thisB, [strand]);
         }
     },
 
@@ -1836,7 +1837,7 @@ var EditTrack = declare(DraggableFeatureTrack,
         console.log("Did insertTranscripts invoked?");
         if (transcripts.length < 1) return;
 
-        this.store.backupStore();
+        // this.store.backupStore();
         try {
             this.getRefSeq(function (refSeq) {
                 var inserted = [];
@@ -2150,62 +2151,63 @@ var EditTrack = declare(DraggableFeatureTrack,
         //   I would think that this hack prevents users from selecting multiple
         //   features at bp level. Funnnily, that doesn't seem to be the case
         //   (verified against sevaral examples). And I don't know why.
-        $(this.getFeatDiv(selection.feature)).mousedown();
+        // $(this.getFeatDiv(selection.feature)).mousedown();
 
-        var feature = EditTrack.getTopLevelAnnotation(selection.feature);
-        var featureDiv = this.getFeatDiv(feature);
-        var seqTrack = this.browser.getSequenceTrack();
-        if (featureDiv)  {
-            var strand = feature.get('strand');
+        // var feature = EditTrack.getTopLevelAnnotation(selection.feature);
+        // var featureDiv = this.getFeatDiv(feature);
+        // var seqTrack = this.browser.getSequenceTrack();
+        // if (featureDiv)  {
+        //     var strand = feature.get('strand');
 
-            var featureTop = $(featureDiv).position().top;
-            var scale = this.gview.bpToPx(1);
-            var charSize = seqTrack.getCharacterMeasurements();
-            if (scale >= charSize.w && this.useResiduesOverlay)  {
-                // Highlight reading frame.
-                var readingFrame = this.getReadingFrame(feature);
-                seqTrack.highlightRF(readingFrame);
+        //     var featureTop = $(featureDiv).position().top;
+        //     var scale = this.gview.bpToPx(1);
+        //     var charSize = seqTrack.getCharacterMeasurements();
+        //     if (scale >= charSize.w && this.useResiduesOverlay)  {
+        //         // Highlight reading frame.
+        //         var readingFrame = this.getReadingFrame(feature);
+        //         seqTrack.highlightRF(readingFrame);
 
-                for (var bindex = this.firstAttached; bindex <= this.lastAttached; bindex++)  {
-                    this.browser.getStore('refseqs', _.bind(function(refSeqStore) {
-                        if (refSeqStore) {
-                            var block = this.blocks[bindex];
-                            refSeqStore.getReferenceSequence(
-                                {ref: this.refSeq.name, start: block.startBase, end: block.endBase},
-                                function (seq) {
-                                    var top = featureTop - 2; // -2 hardwired adjustment to center
-                                    var addBP = true;
-                                    $('div.sequence', block.domNode).each(function () {
-                                        if ($(this).position().top === top) {
-                                            return (addBP = false);
-                                        }
-                                    });
+        //         for (var bindex = this.firstAttached; bindex <= this.lastAttached; bindex++)  {
+        //             this.browser.getStore('refseqs', _.bind(function(refSeqStore) {
+        //                 if (refSeqStore) {
+        //                     var block = this.blocks[bindex];
+        //                     refSeqStore.getReferenceSequence(
+        //                         {ref: this.refSeq.name, start: block.startBase, end: block.endBase},
+        //                         function (seq) {
+        //                             var top = featureTop - 2; // -2 hardwired adjustment to center
+        //                             var addBP = true;
+        //                             $('div.sequence', block.domNode).each(function () {
+        //                                 if ($(this).position().top === top) {
+        //                                     return (addBP = false);
+        //                                 }
+        //                             });
 
-                                    if (addBP) {
-                                        // make a div to contain the sequences
-                                        var seqNode = document.createElement("div");
-                                        seqNode.className = "sequence";
-                                        seqNode.style.width = "100%";
-                                        seqNode.style.top = top + "px";
+        //                             if (addBP) {
+        //                                 // make a div to contain the sequences
+        //                                 var seqNode = document.createElement("div");
+        //                                 seqNode.className = "sequence";
+        //                                 seqNode.style.width = "100%";
+        //                                 seqNode.style.top = top + "px";
 
-                                        if (strand == '-' || strand == -1)  {
-                                            seq = Util.complement(seq);
-                                        }
+        //                                 if (strand == '-' || strand == -1)  {
+        //                                     seq = Util.complement(seq);
+        //                                 }
 
-                                        seqNode.appendChild(seqTrack._ntDiv(seq));
-                                        block.domNode.appendChild(seqNode);
-                                    }
-                                });
-                        }
-                    }, this));
-                }
-            }
-        }
+        //                                 seqNode.appendChild(seqTrack._ntDiv(seq));
+        //                                 block.domNode.appendChild(seqNode);
+        //                             }
+        //                         });
+        //                 }
+        //             }, this));
+        //         }
+        //     }
+        // }
 
-        this.updateMenu();
+        // this.updateMenu();
     },
 
     selectionRemoved: function (selection)  {
+        console.log('ET selectionRemoved: '+selection);
         var seqTrack = this.browser.getSequenceTrack();
         seqTrack.unhighlightRF();
 

@@ -1,4 +1,4 @@
-define(['AnnotationEditor/jslib/underscore',
+define(['underscore/underscore',
         'dojo/_base/declare',
         'dojo/_base/array',
         'JBrowse/Store/SeqFeature',
@@ -9,6 +9,7 @@ define(['AnnotationEditor/jslib/underscore',
     var Scratchpad = declare(SeqFeature, {
 
         constructor: function (args) {
+            console.log("Scratchpad init.");
             this.inherited(arguments);
             this.refSeq   = args.refSeq;
 
@@ -18,6 +19,7 @@ define(['AnnotationEditor/jslib/underscore',
             // If no features in localStorage, start with server sent feature
             // if any.
             if (this.features && this.config.features) {
+                console.log("SP in trueBlock");
                 this.features = this._makeFeatures(this.config.features);
                 this.undoStateStack = new Stack();
                 this.redoStateStack = new Stack();
@@ -133,6 +135,7 @@ define(['AnnotationEditor/jslib/underscore',
         },
 
         _makeFeatures: function (fdata) {
+            console.log("in _makeFeatures");
             return _.map(fdata, _.bind(function (fd) {
                 return this._makeFeature(fd);
             }, this));

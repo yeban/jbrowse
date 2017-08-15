@@ -1,7 +1,22 @@
+require({
+      packages: [
+          {name: 'jquery', location: '../plugins/AnnotationEditor/jslib/jquery', main: 'jquery'},
+          {name: 'jqueryui', location: '../plugins/AnnotationEditor/jslib/jqueryui'},
+          {name: 'underscore', location: '../plugins/AnnotationEditor/jslib/underscore', main: 'underscore'},
+          {name: 'contextmenu', location: '../plugins/AnnotationEditor/jslib/contextmenu', main: 'underscore'},
+          {name: 'genevalidator', location: '../plugins/AnnotationEditor/jslib/genevalidator', main: 'gvapi'}
+      ]
+    },
+    [],
+    function() {
+
+define.amd.jQuery = true;
+
 define([
            'dojo/_base/declare',
            'dojo/_base/array',
-           'AnnotationEditor/jslib/jquery/jquery',
+           'jquery/jquery',
+           'underscore/underscore',
            'AnnotationEditor/FeatureEdgeMatchManager',
            'AnnotationEditor/FeatureSelectionManager',
            'AnnotationEditor/TrackConfigTransformer',
@@ -13,6 +28,7 @@ define([
            declare,
            array,
            $,
+           _,
            FeatureEdgeMatchManager,
            FeatureSelectionManager,
            TrackConfigTransformer,
@@ -33,15 +49,15 @@ return declare( JBrowsePlugin,
         // hand the browser object to the feature edge match manager
         FeatureEdgeMatchManager.setBrowser( browser );
 
-        this.featSelectionManager = new FeatureSelectionManager();
-        this.annotSelectionManager = new FeatureSelectionManager();
+        browser.featSelectionManager = new FeatureSelectionManager();
+        browser.annotSelectionManager = new FeatureSelectionManager();
         this.trackTransformer = new TrackConfigTransformer({ browser: browser });
 
-        this.annotSelectionManager.addMutualExclusion(this.featSelectionManager);
-        this.featSelectionManager.addMutualExclusion(this.annotSelectionManager);
+        browser.annotSelectionManager.addMutualExclusion(browser.featSelectionManager);
+        browser.featSelectionManager.addMutualExclusion(browser.annotSelectionManager);
 
-        FeatureEdgeMatchManager.addSelectionManager(this.featSelectionManager);
-        FeatureEdgeMatchManager.addSelectionManager(this.annotSelectionManager);
+        FeatureEdgeMatchManager.addSelectionManager(browser.featSelectionManager);
+        FeatureEdgeMatchManager.addSelectionManager(browser.annotSelectionManager);
 
         array.forEach(browser.config.tracks,function(e) { thisB.trackTransformer.transform(e); })
 
@@ -127,5 +143,6 @@ return declare( JBrowsePlugin,
             // gb.showTracks(["DNA","gene","Edit"]);
         })
     }
+});
 });
 });

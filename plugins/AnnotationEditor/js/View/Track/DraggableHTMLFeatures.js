@@ -3,14 +3,14 @@ define([
     'dojo/_base/array',
     'JBrowse/View/Track/HTMLFeatures',
     'AnnotationEditor/FeatureSelectionManager',
-    'jquery',
-    // 'AnnotationEditor/jslib/underscore',
-    'AnnotationEditor/jslib/jqueryui/draggable',
+    'jquery/jquery',
+    'underscore/underscore',
+    'jqueryui/draggable',
     'JBrowse/Util',
     'JBrowse/Model/SimpleFeature',
     'AnnotationEditor/SequenceOntologyUtils'
 ],
-function (declare, array, HTMLFeatureTrack, FeatureSelectionManager, $, draggable, Util, SimpleFeature, SeqOnto) {
+function (declare, array, HTMLFeatureTrack, FeatureSelectionManager, $, _, draggable, Util, SimpleFeature, SeqOnto) {
 
 var debugFrame = false;
 var draggableTrack = declare(HTMLFeatureTrack,
@@ -33,15 +33,15 @@ var draggableTrack = declare(HTMLFeatureTrack,
     constructor: function( args ) {
         this.gview = this.browser.view;
 
-        this.browser.getPlugin('AnnotationEditor', dojo.hitch( this, function(p) {
-          this.annotEdit = p;
-        }))
+        // this.browser.getPlugin('AnnotationEditor', dojo.hitch( this, function(p) {
+        //   this.annotEdit = p;
+        // }))
 
         // DraggableFeatureTracks all share the same FeatureSelectionManager if
         // want subclasses to have different selection manager, call
         // this.setSelectionManager in subclass (after calling parent
         // constructor).
-        this.setSelectionManager(this.annotEdit.featSelectionManager);
+        this.setSelectionManager(this.browser.featSelectionManager);
 
         // CSS class for selected features
         // override if want subclass to have different CSS class for selected features
@@ -57,10 +57,12 @@ var draggableTrack = declare(HTMLFeatureTrack,
 
 
     setSelectionManager: function(selman)  {
+        console.log("in setSelectionManager");
         if (this.selectionManager)  {
             this.selectionManager.removeListener(this);
         }
         this.selectionManager = selman;
+        console.dir(selman);
         // FeatureSelectionManager listeners must implement
         //     selectionAdded() and selectionRemoved() response methods
         this.selectionManager.addListener(this);
@@ -187,6 +189,7 @@ var draggableTrack = declare(HTMLFeatureTrack,
         var slength = selected.length;
         for (var i=0; i<slength; i++)  {
             var rec = selected[i];
+            console.log("Draggable selectionCleared: "+rec);
             track.selectionRemoved( rec );
         }
     },
@@ -218,7 +221,7 @@ var draggableTrack = declare(HTMLFeatureTrack,
     renderFeature: function(feature, uniqueId, block, scale, labelScale, descriptionScale, 
                             containerStart, containerEnd) {
         var featdiv = this.inherited( arguments );
-        console.log("renderFeature (DHF)");
+        // console.log("renderFeature (DHF)");
         if (featdiv)  {  // just in case featDiv doesn't actually get created
             var $featdiv = $(featdiv);
             $featdiv.on("mousedown", dojo.hitch( this, 'onFeatureMouseDown'));
