@@ -125,50 +125,50 @@ var EditTrack = declare(DraggableFeatureTrack,
      *  Extend superclass method to add event handling right-click context menu
      *  and make annotation in this track droppable.
      */
-    renderFeature: function (feature, uniqueId, block, scale, labelScale, descriptionScale, containerStart, containerEnd) {
-        var featDiv  = this.inherited(arguments);
-        console.log("renderFeature preffer (ET)");
-        var $featDiv = $(featDiv);
-        var thisB = this;
+    //renderFeature: function (feature, uniqueId, block, scale, labelScale, descriptionScale, containerStart, containerEnd) {
+        //var featDiv  = this.inherited(arguments);
+        //console.log("renderFeature preffer (ET)");
+        //var $featDiv = $(featDiv);
+        //var thisB = this;
 
-        $featDiv
-        .attr('data-toggle', 'context')
-        .attr('data-target', '#contextmenu');
+        //$featDiv
+        //.attr('data-toggle', 'context')
+        //.attr('data-target', '#contextmenu');
 
-        $featDiv.droppable({
-            greedy:     true,
-            accept:     ".selected-feature",
-            tolerance:  "pointer",
-            hoverClass: "annot-drop-hover",
+        //$featDiv.droppable({
+            //greedy:     true,
+            //accept:     ".selected-feature",
+            //tolerance:  "pointer",
+            //hoverClass: "annot-drop-hover",
 
-            drop: function (event, ui) {
-                var transcript = featDiv.feature;
-                // var selection = thisB.browser.featSelectionManager.getSelection();
-                var selection = thisB.selectionManager.getSelection();
-                thisB.addDraggedFeatures(selection, transcript);
-                event.stopPropagation();
-            }
-        });
+            //drop: function (event, ui) {
+                //var transcript = featDiv.feature;
+                //// var selection = thisB.browser.featSelectionManager.getSelection();
+                //var selection = thisB.selectionManager.getSelection();
+                //thisB.addDraggedFeatures(selection, transcript);
+                //event.stopPropagation();
+            //}
+        //});
 
-        return featDiv;
-    },
+        //return featDiv;
+    //},
 
     /**
      *  Extend superclass method to make exons resizable.
      */
-    renderSubfeature: function (feature, featDiv, subfeature,
-                                displayStart, displayEnd, block) {
-        var subdiv = this.inherited( arguments );
+    //renderSubfeature: function (feature, featDiv, subfeature,
+                                //displayStart, displayEnd, block) {
+        //var subdiv = this.inherited( arguments );
 
         /**
          *  setting up annotation resizing via pulling of left/right edges but
          *  if subfeature is not selectable, do not bind mouse down
          */
-        if (subdiv && subdiv != null && (! this.selectionManager.unselectableTypes[subfeature.get('type')]) )  {
-            $(subdiv).bind("mousedown", dojo.hitch(this, 'onAnnotMouseDown'));
-        }
-        return subdiv;
-    },
+        //if (subdiv && subdiv != null && (! this.selectionManager.unselectableTypes[subfeature.get('type')]) )  {
+            //$(subdiv).bind("mousedown", dojo.hitch(this, 'onAnnotMouseDown'));
+        //}
+        //return subdiv;
+    //},
 
     /**
      *   handles mouse down on an annotation subfeature
@@ -268,7 +268,6 @@ var EditTrack = declare(DraggableFeatureTrack,
         if (transcript) {
             transcripts.push(transcript);
         }
-
         if (transcripts.length === 1) {
             thisB.insertTranscript(transcripts[0]);
             return;
@@ -1197,7 +1196,7 @@ var EditTrack = declare(DraggableFeatureTrack,
 
         var seq   = refSeq.slice(start, end);
         if (feature.get('strand') == -1) {
-            seq = Util.reverseComplement(seq)
+            seq = Util.revcom(seq)
         }
 
         return seq;
@@ -1219,7 +1218,7 @@ var EditTrack = declare(DraggableFeatureTrack,
         });
         cdna = cdna.join('');
         if (feature.get('strand') == -1) {
-            cdna = Util.reverseComplement(cdna);
+            cdna = Util.revcom(cdna);
         }
 
         return cdna;
@@ -1242,7 +1241,7 @@ var EditTrack = declare(DraggableFeatureTrack,
         cds = cds.join('');
 
         if (transcript.get('strand') === -1) {
-            cds = Util.reverseComplement(cds);
+            cds = Util.revcom(cds);
         }
 
         return cds;
@@ -1321,8 +1320,8 @@ var EditTrack = declare(DraggableFeatureTrack,
             var dbp = refSeq.slice(dc, dc + 2);
             var abp = refSeq.slice(ac - 2, ac);
             if (transcript.get('strand') === -1) {
-                dbp = Util.reverseComplement(dbp);
-                abp = Util.reverseComplement(abp);
+                dbp = Util.revcom(dbp);
+                abp = Util.revcom(abp);
             }
             spliceCoordinates.push([[dc, dbp], [ac, abp]]);
         }
@@ -1808,14 +1807,14 @@ var EditTrack = declare(DraggableFeatureTrack,
      * Extend superclass' changed function to refresh our additions to the UI as
      * well.
      */
-    changed: function (opts) {
-        this.inherited(arguments);
+    //changed: function (opts) {
+        //this.inherited(arguments);
 
-        this.updateDoneButton();
-        this.updateControlButtons();
-        if (!(opts && opts.sync === false))
-            this.store.syncToLocalStorage();
-    },
+        //this.updateDoneButton();
+        //this.updateControlButtons();
+        //if (!(opts && opts.sync === false))
+            //this.store.syncToLocalStorage();
+    //},
 
     highlightFeature: function (feature) {
         var div = this.getFeatDiv(feature);
@@ -1836,6 +1835,13 @@ var EditTrack = declare(DraggableFeatureTrack,
     insertTranscripts: function (transcripts, callback) {
         console.log("Did insertTranscripts invoked?");
         if (transcripts.length < 1) return;
+        this.store.insert(transcripts[0]);
+        console.log('**********');
+        console.log(this.store.features);
+        console.log('**********');
+        this.changed();
+        return;
+
 
         // this.store.backupStore();
         try {
@@ -2208,8 +2214,8 @@ var EditTrack = declare(DraggableFeatureTrack,
 
     selectionRemoved: function (selection)  {
         console.log('ET selectionRemoved: '+selection);
-        var seqTrack = this.browser.getSequenceTrack();
-        seqTrack.unhighlightRF();
+        //var seqTrack = this.browser.getSequenceTrack();
+        //seqTrack.unhighlightRF();
 
         this.inherited(arguments);
 

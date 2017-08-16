@@ -18,12 +18,13 @@ define(['underscore/underscore',
 
             // If no features in localStorage, start with server sent feature
             // if any.
-            if (this.features && this.config.features) {
-                console.log("SP in trueBlock");
-                this.features = this._makeFeatures(this.config.features);
-                this.undoStateStack = new Stack();
-                this.redoStateStack = new Stack();
-            }
+            //if (this.features && this.config.features) {
+                //console.log("SP in trueBlock");
+                //this.features = this._makeFeatures(this.config.features);
+                //this.undoStateStack = new Stack();
+                //this.redoStateStack = new Stack();
+            //}
+            this.features = [];
 
             this._calculateStats();
         },
@@ -109,10 +110,10 @@ define(['underscore/underscore',
          *   It will always overwrite existing data.
          */
         syncToLocalStorage: function () {
-            localStorage.setItem('id', this.browser.config.id);
-            localStorage.setItem('features', Scratchpad.featuresToJSON(this.features));
-            localStorage.setItem('undoStateStack', Stack.toJSON(this.undoStateStack));
-            localStorage.setItem('redoStateStack', Stack.toJSON(this.redoStateStack));
+            //localStorage.setItem('id', this.browser.config.id);
+            //localStorage.setItem('features', Scratchpad.featuresToJSON(this.features));
+            //localStorage.setItem('undoStateStack', Stack.toJSON(this.undoStateStack));
+            //localStorage.setItem('redoStateStack', Stack.toJSON(this.redoStateStack));
         },
 
         /**
@@ -189,7 +190,8 @@ define(['underscore/underscore',
      */
     Scratchpad.featuresToJSON = function (features) {
         var featuresJSON = _.map(features, function (f) {
-            return SimpleFeature.toJSON(f)
+            //return SimpleFeature.toJSON(f)
+            return '';
         });
         return JSON.stringify(featuresJSON);
     };
