@@ -1,0 +1,100 @@
+@import 'jquery-ui.css';
+
+/**
+ * Edit track.
+ **/
+div.track_edit {
+  background-color: #FFFFDD !important;
+}
+
+/**
+ * Feature style.
+ **/
+.transcript,
+.plus-transcript,
+.minus-transcript {
+    position: absolute;
+    height: 11px;
+    background: url('../../../img/dark_20x3.png') repeat-x 0 4px;
+    z-index: 6;
+    min-width: 1px;
+    cursor: pointer;
+}
+
+.CDS,
+.plus-CDS,
+.minus-CDS {
+    position: absolute;
+    height: 11px;
+    background-color: #B66;
+    cursor: pointer;
+    z-index: 10;
+    min-width: 1px;
+}
+
+.plus-exon,
+.minus-exon,
+.plus-UTR,
+.minus-UTR,
+.plus-five_prime_UTR,
+.minus-five_prime_UTR,
+.plus-three_prime_UTR,
+.minus-three_prime_UTR {
+    position: absolute;
+    height: 11px;
+    background-color: transparent;
+    border: none;
+    z-index: 8;
+    min-width: 1px;
+    cursor: pointer;
+}
+
+.non-canonical-splice-site,
+.plus-non-canonical-splice-site,
+.minus-non-canonical-splice-site,
+.non-canonical-translation-start-site,
+.plus-non-canonical-translation-start-site,
+.minus-non-canonical-translation-start-site,
+.plus-non-canonical-translation-stop-site,
+.minus-non-canonical-translation-stop-site
+{
+    margin-left: -8px;
+    /* margin-top: -11px;  */
+    /*  moved noncanonical icon to bottom of annotation, prefer top of annotation but 
+    need to have a some padding at top of track before that works */
+    margin-top: 9px;
+    padding-left: 8px;
+    padding-right: 8px;
+    position: absolute;
+    height: 16px;
+    z-index: 100;
+    background-color: transparent;
+    background-image: url('img/exclamation_circle_orange.png');
+    background-repeat: no-repeat;
+    pointer-events: none;   /*  attempting to route around issue with centered non-canon splice sites preventing edge-drag */
+}
+
+/**
+ * Feature selection and edge matching.
+ */
+.selected-feature {
+    outline-style: solid;
+    outline-color: black;
+    outline-width: 4px;
+}
+
+.left-edge-match  {
+    border-left: solid black 2px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+}
+
+.right-edge-match  {
+    border-right: solid black 2px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+}
