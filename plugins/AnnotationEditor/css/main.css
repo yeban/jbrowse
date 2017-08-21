@@ -98,3 +98,9 @@ div.track_edit {
     -webkit-box-sizing: border-box;
     -ms-box-sizing: border-box;
 }
+
+.selected-annotation {
+    outline-style: solid;
+    outline-color: black;
+    outline-width: 4px;
+}
