@@ -68,6 +68,75 @@ var EditTrack = declare(DraggableFeatureTrack,
 
     _defaultConfig: function () {
         var thisConfig = this.inherited(arguments);
+        var thisB = this;
+        thisConfig.menuTemplate = [
+                            {
+                                label: 'Get sequence',
+                                action: function() {
+                                    thisB.showSequenceDialog();
+                                }
+                            },
+                            {
+                                label: 'Send to GeneValidator',
+                                action: function() {
+                                    thisB.sendToGeneValidator();
+                                }
+                            },
+                            {
+                                label: 'Delete',
+                                action: function() {
+                                    thisB.deleteSelectedFeatures();
+                                }
+                            },
+                            {
+                                label: 'Merge',
+                                action: function() {
+                                    thisB.mergeSelectedFeatures();
+                                }
+                            },
+                            {
+                                label: 'Make Intron',
+                                action: function() {
+                                    thisB.makeIntronInSelectedExon();
+                                }
+                            },
+                            {
+                                label: 'Split Transcript',
+                                action: function() {
+                                    thisB.splitSelectedTranscript();
+                                }
+                            },
+                            {
+                                label: 'Duplicate',
+                                action: function() {
+                                    thisB.duplicateSelectedFeatures();
+                                }
+                            },
+                            {
+                                label: 'Flip Strand',
+                                action: function() {
+                                    thisB.flipStrandForSelectedFeatures();
+                                }
+                            },
+                            {
+                                label: 'Use Longest ORF',
+                                action: function() {
+                                    thisB.setLongestORFForImpliedTranscript();
+                                }
+                            },
+                            {
+                                label: 'Set Translation Start',
+                                action: function() {
+                                    thisB.setTranslationStartForImpliedTranscript();
+                                }
+                            },
+                            {
+                                label: 'Set Translation Stop',
+                                action: function() {
+                                    thisB.setTranslationStopForImpliedTranscript();
+                                }
+                            }
+                        ]
         thisConfig.noExport = true;  // turn off default "Save track data" "
         thisConfig.style.centerChildrenVertically = false;
         return thisConfig;
