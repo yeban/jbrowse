@@ -45,7 +45,7 @@ var EditTrack = declare(DraggableFeatureTrack,
          *   (otherwise will interfere with passing of events to features beneath the overlay)
          */
         this.useResiduesOverlay = 'pointerEvents' in document.body.style;
-        this.selectionClass = "selected-annotation";
+        this.selectionClass = "selected-feature";
 
         this.gview.browser.subscribe("/jbrowse/v1/n/navigate", dojo.hitch(this, function(currRegion) {
             if (currRegion.ref != this.refSeq.name) {

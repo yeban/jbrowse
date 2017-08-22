@@ -10,6 +10,9 @@ div.track_edit {
 /**
  * Feature style.
  **/
+
+/* Generic feature classes applied to transcripts in HTMLFeatures,
+ * DraggableHTMLFeatures, and EditTrack. */
 .transcript,
 .plus-transcript,
 .minus-transcript {
@@ -20,18 +23,6 @@ div.track_edit {
     min-width: 1px;
     cursor: pointer;
 }
-
-.CDS,
-.plus-CDS,
-.minus-CDS {
-    position: absolute;
-    height: 11px;
-    background-color: #B66;
-    cursor: pointer;
-    z-index: 10;
-    min-width: 1px;
-}
-
 .plus-exon,
 .minus-exon,
 .plus-UTR,
@@ -48,7 +39,20 @@ div.track_edit {
     min-width: 1px;
     cursor: pointer;
 }
+.CDS,
+.plus-CDS,
+.minus-CDS {
+    position: absolute;
+    height: 11px;
+    background-color: #B66;
+    cursor: pointer;
+    z-index: 10;
+    min-width: 1px;
+}
 
+/* These classes are applied by validations in EditTrack to indicate
+ * non-canonical sites.
+ */
 .non-canonical-splice-site,
 .plus-non-canonical-splice-site,
 .minus-non-canonical-splice-site,
@@ -74,8 +78,8 @@ div.track_edit {
     pointer-events: none;   /*  attempting to route around issue with centered non-canon splice sites preventing edge-drag */
 }
 
-/**
- * Feature selection and edge matching.
+/* This class is applied by FeatureSelectionManager to features in
+ * DraggableHTMLFeatures tracks when they are selected.
  */
 .selected-feature {
     outline-style: solid;
@@ -83,6 +87,9 @@ div.track_edit {
     outline-width: 4px;
 }
 
+/* These classes are applied by FeatureEdgeMatchManager to subfeatures in
+ * DraggableHTMLFeatures track whose start and stop coordinate equal that
+ * of the selected feature. */
 .left-edge-match  {
     border-left: solid black 2px;
     box-sizing: border-box;
@@ -90,17 +97,10 @@ div.track_edit {
     -webkit-box-sizing: border-box;
     -ms-box-sizing: border-box;
 }
-
 .right-edge-match  {
     border-right: solid black 2px;
     box-sizing: border-box;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box;
     -ms-box-sizing: border-box;
-}
-
-.selected-annotation {
-    outline-style: solid;
-    outline-color: black;
-    outline-width: 4px;
 }
